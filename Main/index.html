@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SignSense – ASL, Morse, OCR, Braille & Translation</title>
+  <meta name="description"
+    content="Real-time ASL sign language, morse code eye-blink detector, OCR scanner, and Braille translator. Converts hand signs, blinks, and Braille to text instantly." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=Share+Tech+Mono&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <div class="bg-orbs">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+
+  <header class="header">
+    <div class="logo">
+      <span class="logo-icon">🤟</span>
+      <span class="logo-text">SignSense</span>
+    </div>
+    <!-- Mode Switcher Tabs -->
+    <div class="mode-tabs">
+      <button class="mode-tab active" id="tabASL" data-mode="asl">
+        <span>✋</span> ASL Signs
+      </button>
+      <button class="mode-tab" id="tabGestures" data-mode="gestures">
+        <span>🤲</span> Gestures
+      </button>
+      <button class="mode-tab" id="tabWords" data-mode="words">
+        <span>💬</span> Sign Words
+      </button>
+      <button class="mode-tab" id="tabMorse" data-mode="morse">
+        <span>👁️</span> Morse Blinks
+      </button>
+      <button class="mode-tab" id="tabOCR" data-mode="ocr">
+        <span>📸</span> OCR Scan
+      </button>
+      <button class="mode-tab" id="tabBraille" data-mode="braille">
+        <span>⠿</span> Braille
+      </button>
+      <button class="mode-tab" id="tabTranslate" data-mode="translate">
+        <span>🌐</span> Translate
+      </button>
+    </div>
+    <div class="header-badge" id="headerBadge">ASL Alphabet Detector</div>
+  </header>
+
+  <main class="main-container">
+    <!-- Camera & Detection Panel (shared) -->
+    <section class="camera-section">
+      <div class="camera-card">
+        <div class="camera-header">
+          <div class="status-indicator">
+            <span class="status-dot" id="statusDot"></span>
+            <span class="status-text" id="statusText">Loading AI models…</span>
+          </div>
+          <div class="fps-badge" id="fpsBadge">0 FPS</div>
+        </div>
+
+        <div class="camera-viewport">
+          <video id="webcam" autoplay muted playsinline></video>
+          <canvas id="overlayCanvas"></canvas>
+
+          <!-- ASL detection badge -->
+          <div class="detection-overlay" id="detectionOverlay">
+            <div class="detected-letter" id="detectedLetter">–</div>
+            <div class="confidence-bar-wrap">
+              <div class="confidence-bar" id="confidenceBar"></div>
+            </div>
+            <div class="confidence-label" id="confidenceLabel">0%</div>
+          </div>
+
+          <!-- Morse blink overlay -->
+          <div class="morse-overlay" id="morseOverlay">
+            <div class="eye-status" id="eyeStatus">👁️ Open</div>
+            <div class="current-morse" id="currentMorse">—</div>
+          </div>
+
+          <!-- OCR freeze overlay -->
+          <div class="ocr-freeze-overlay" id="ocrFreezeOverlay">
+            <div class="ocr-scanning-ring"></div>
+            <span>Scanning…</span>
+          </div>
+
+          <!-- Hint notices -->
+          <div class="no-hand-notice" id="noHandNotice">
+            <span>✋ Show your hand to the camera</span>
+          </div>
+          <div class="no-face-notice" id="noFaceNotice">
+            <span>👁️ Look at the camera clearly</span>
+          </div>
+
+          <!-- Loading overlay (hidden by default; only shown during camera init errors) -->
+          <div class="loading-overlay hidden" id="loadingOverlay">
+            <div class="spinner"></div>
+            <p id="loadingMsg">Loading AI Models…</p>
+          </div>
+        </div>
+
+        <div class="camera-controls">
+          <button id="toggleCamBtn" class="btn btn-secondary">
+            <span>📷</span> Start Camera
+          </button>
+          <button id="clearBtn" class="btn btn-ghost"><span>🗑️</span> Clear</button>
+          <button id="spaceBtn" class="btn btn-ghost"><span>⎵</span> Space</button>
+          <button id="backspaceBtn" class="btn btn-ghost"><span>⌫</span> Delete</button>
+          <button id="sttBtn" class="btn btn-stt" title="Speech to Text (English)"><span>🎤</span> Mic STT</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Output Panel -->
+    <section class="output-section">
+
+      <!-- ══ ASL PANEL ══ -->
+      <div id="aslPanel">
+        <!-- Live Detection Card -->
+        <div class="output-card detection-card">
+          <div class="card-label">Live Detection</div>
+          <div class="big-letter-display">
+            <span class="big-letter" id="bigLetter">?</span>
+          </div>
+          <div class="gesture-name" id="gestureName">Waiting for hand…</div>
+          <div class="hold-progress-wrap">
+            <div class="hold-label">Hold to confirm</div>
+            <div class="hold-track">
+              <div class="hold-fill" id="holdFill"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ASL Settings Card -->
+        <div class="output-card settings-card">
+          <div class="card-label">ASL Settings</div>
+          <div class="setting-row">
+            <label class="setting-label" for="holdDuration">Hold Duration</label>
+            <div class="slider-wrap">
+              <input type="range" id="holdDuration" min="500" max="3000" step="100" value="1000" />
+              <span class="slider-value" id="holdDurationVal">1.0s</span>
+            </div>
+          </div>
+          <div class="setting-row">
+            <label class="setting-label" for="minConfidence">Min Confidence</label>
+            <div class="slider-wrap">
+              <input type="range" id="minConfidence" min="40" max="95" step="5" value="60" />
+              <span class="slider-value" id="minConfidenceVal">60%</span>
+            </div>
+          </div>
+          <div class="setting-row">
+            <label class="setting-label">Mirror Camera</label>
+            <label class="toggle-switch">
+              <input type="checkbox" id="mirrorToggle" checked />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- ASL Reference -->
+        <div class="output-card ref-card">
+          <div class="card-label">ASL Alphabet Reference</div>
+          <div class="asl-grid" id="aslGrid"></div>
+        </div>
+      </div>
+
+
+      <!-- ══ GESTURE DETECTION PANEL ══ -->
+      <div id="gesturePanel" class="hidden">
+
+        <!-- Live Detection Card -->
+        <div class="output-card gesture-live-card">
+          <div class="card-label">Live Gesture Detection</div>
+          <div class="gesture-emoji-display">
+            <span class="gesture-emoji" id="gestureEmoji">🤲</span>
+          </div>
+          <div class="gesture-label-display" id="gestureLabelDisplay">Waiting for hand…</div>
+          <div class="gesture-meaning-display" id="gestureMeaningDisplay">Show a gesture to the camera</div>
+          <div class="gesture-conf-wrap">
+            <div class="gesture-conf-bar-track">
+              <div class="gesture-conf-bar" id="gestureConfBar"></div>
+            </div>
+            <span class="gesture-conf-label" id="gestureConfLabel">0%</span>
+          </div>
+          <div class="hold-progress-wrap" style="margin-top:0.8rem">
+            <div class="hold-label" id="gestureHoldLabel">Hold to confirm</div>
+            <div class="hold-track">
+              <div class="hold-fill gesture-fill" id="gestureHoldFill"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Settings Card -->
+        <div class="output-card settings-card">
+          <div class="card-label">Gesture Settings</div>
+          <div class="setting-row">
+            <label class="setting-label" for="gestureHoldDuration">Hold Duration</label>
+            <div class="slider-wrap">
+              <input type="range" id="gestureHoldDuration" min="300" max="3000" step="100" value="1000" />
+              <span class="slider-value" id="gestureHoldDurationVal">1.0s</span>
+            </div>
+          </div>
+          <div class="setting-row">
+            <label class="setting-label" for="gestureMinConf">Min Confidence</label>
+            <div class="slider-wrap">
+              <input type="range" id="gestureMinConf" min="40" max="95" step="5" value="60" />
+              <span class="slider-value" id="gestureMinConfVal">60%</span>
+            </div>
+          </div>
+          <div class="setting-row">
+            <label class="setting-label">Mirror Camera</label>
+            <label class="toggle-switch">
+              <input type="checkbox" id="gestureMirrorToggle" checked />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Gesture Reference Grid -->
+        <div class="output-card ref-card">
+          <div class="card-label">Supported Gestures</div>
+          <div class="gesture-ref-grid" id="gestureRefGrid"></div>
+        </div>
+
+      </div>
+
+
+      <!-- ══ WORD DETECTION PANEL ══ -->
+      <div id="wordPanel" class="hidden">
+
+        <!-- Live Word Display -->
+        <div class="output-card word-live-card">
+          <div class="card-label">Live Word Detection</div>
+          <div class="word-big-display">
+            <span class="word-current" id="wordCurrent">…</span>
+          </div>
+          <div class="word-signed-seq" id="wordSignedSeq">Sign letters to build a word</div>
+          <div class="hold-progress-wrap" style="margin-top:0.6rem">
+            <div class="hold-label" id="wordProgressLabel">Hold a letter to add it</div>
+            <div class="hold-track">
+              <div class="hold-fill word-fill" id="wordHoldFill"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Word Suggestions -->
+        <div class="output-card word-suggest-card">
+          <div class="card-label">Word Suggestions <span class="word-mode-badge">AI Match</span></div>
+          <div class="word-suggestions" id="wordSuggestions">
+            <span class="word-suggest-hint">Start signing letters to see suggestions…</span>
+          </div>
+          <div style="display:flex;gap:0.5rem;margin-top:0.8rem;flex-wrap:wrap">
+            <button class="btn btn-ghost" id="wordCommitBtn">✅ Commit Word</button>
+            <button class="btn btn-ghost" id="wordSpaceBtn">⎵ Space</button>
+            <button class="btn btn-ghost" id="wordClearSeqBtn">↩ Clear Sign</button>
+          </div>
+        </div>
+
+        <!-- Word Mode Settings -->
+        <div class="output-card settings-card">
+          <div class="card-label">Word Mode Settings</div>
+          <div class="setting-row">
+            <label class="setting-label" for="wordHoldDuration">Letter Hold Time</label>
+            <div class="slider-wrap">
+              <input type="range" id="wordHoldDuration" min="300" max="2000" step="100" value="800" />
+              <span class="slider-value" id="wordHoldDurationVal">0.8s</span>
+            </div>
+          </div>
+          <div class="setting-row">
+            <label class="setting-label" for="wordMinConf">Min Confidence</label>
+            <div class="slider-wrap">
+              <input type="range" id="wordMinConf" min="40" max="95" step="5" value="55" />
+              <span class="slider-value" id="wordMinConfVal">55%</span>
+            </div>
+          </div>
+          <div class="setting-row">
+            <label class="setting-label" for="wordSeqTimeout">Sequence Timeout</label>
+            <div class="slider-wrap">
+              <input type="range" id="wordSeqTimeout" min="2000" max="8000" step="500" value="4000" />
+              <span class="slider-value" id="wordSeqTimeoutVal">4.0s</span>
+            </div>
+          </div>
+          <div class="setting-row">
+            <label class="setting-label">Mirror Camera</label>
+            <label class="toggle-switch">
+              <input type="checkbox" id="wordMirrorToggle" checked />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Phrase Reference -->
+        <div class="output-card ref-card">
+          <div class="card-label">Common ASL Words & Phrases Reference</div>
+          <div class="word-ref-grid" id="wordRefGrid"></div>
+        </div>
+
+      </div>
+
+
+      <!-- ══ OCR PANEL ══ -->
+      <div id="ocrPanel" class="hidden">
+
+        <!-- Image Upload / Drop Zone -->
+        <div class="output-card ocr-upload-card" id="ocrDropZone">
+          <div class="card-label">Scan Image <span class="ocr-badge">Drag &amp; Drop or Click</span></div>
+          <div class="ocr-drop-content">
+            <div class="ocr-drop-icon">🖼️</div>
+            <p class="ocr-drop-text">Drop an image here or click to upload</p>
+            <p class="ocr-drop-sub">Supports JPG, PNG, WebP, PDF</p>
+            <input type="file" id="ocrFileInput" accept="image/*,.pdf" hidden />
+          </div>
+          <div class="ocr-preview-wrap" id="ocrPreviewWrap" style="display:none">
+            <img id="ocrPreviewImg" alt="Preview" />
+            <button class="ocr-clear-img" id="ocrClearImg">✕ Remove</button>
+          </div>
+        </div>
+
+        <!-- Scan Controls -->
+        <div class="output-card ocr-controls-card">
+          <div class="card-label">OCR Controls</div>
+          <div class="ocr-btn-row">
+            <button class="btn btn-ocr-primary" id="ocrScanCamBtn" disabled>
+              <span>📷</span> Scan Camera Frame
+            </button>
+            <button class="btn btn-ocr-secondary" id="ocrScanImgBtn" disabled>
+              <span>🖼️</span> Scan Uploaded Image
+            </button>
+          </div>
+          <div class="setting-row" style="margin-top:0.8rem">
+            <label class="setting-label" for="ocrLang">Language</label>
+            <select id="ocrLang" class="ocr-select">
+              <option value="eng">English</option>
+              <option value="fra">French</option>
+              <option value="deu">German</option>
+              <option value="spa">Spanish</option>
+              <option value="hin">Hindi</option>
+              <option value="chi_sim">Chinese (Simplified)</option>
+            </select>
+          </div>
+          <div class="setting-row">
+            <label class="setting-label">Append to text</label>
+            <label class="toggle-switch">
+              <input type="checkbox" id="ocrAppendToggle" checked />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- OCR Progress / Result -->
+        <div class="output-card ocr-result-card">
+          <div class="card-label">Scan Status</div>
+          <div class="ocr-progress-wrap" id="ocrProgressWrap">
+            <div class="ocr-progress-bar" id="ocrProgressBar"></div>
+          </div>
+          <div class="ocr-status-text" id="ocrStatusText">Ready to scan</div>
+          <div class="ocr-raw-result" id="ocrRawResult"></div>
+        </div>
+
+      </div>
+
+      <!-- ══ MORSE PANEL ══ -->
+      <div id="morsePanel" class="hidden">
+
+        <!-- Morse Live Display Card -->
+        <div class="output-card morse-live-card">
+          <div class="card-label">Live Morse Input</div>
+          <div class="morse-sequence-display">
+            <span class="morse-sequence" id="morseSequence">—</span>
+          </div>
+          <div class="morse-decoded-preview" id="morseDecodedPreview">?</div>
+          <div class="morse-timers">
+            <div class="morse-timer-item">
+              <span class="timer-dot blink-dot" id="blinkDotIndicator"></span>
+              <span class="timer-label" id="blinkStateLabel">Eyes open</span>
+            </div>
+          </div>
+          <div class="hold-progress-wrap">
+            <div class="hold-label" id="morseProgressLabel">Waiting for blink…</div>
+            <div class="hold-track">
+              <div class="hold-fill morse-fill" id="morseProgressFill"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Morse Timeline Card -->
+        <div class="output-card morse-timeline-card">
+          <div class="card-label">Blink Timeline</div>
+          <canvas id="timelineCanvas" height="60"></canvas>
+        </div>
+
+        <!-- Morse Settings Card -->
+        <div class="output-card settings-card">
+          <div class="card-label">Morse Settings</div>
+          <div class="setting-row">
+            <label class="setting-label" for="dotMaxMs">Dot Max Duration</label>
+            <div class="slider-wrap">
+              <input type="range" id="dotMaxMs" min="100" max="600" step="50" value="300" />
+              <span class="slider-value" id="dotMaxMsVal">300ms</span>
+            </div>
+          </div>
+          <div class="setting-row">
+            <label class="setting-label" for="letterGapMs">Letter Gap</label>
+            <div class="slider-wrap">
+              <input type="range" id="letterGapMs" min="500" max="3000" step="100" value="1200" />
+              <span class="slider-value" id="letterGapMsVal">1.2s</span>
+            </div>
+          </div>
+          <div class="setting-row">
+            <label class="setting-label" for="wordGapMs">Word Gap</label>
+            <div class="slider-wrap">
+              <input type="range" id="wordGapMs" min="1500" max="5000" step="100" value="2500" />
+              <span class="slider-value" id="wordGapMsVal">2.5s</span>
+            </div>
+          </div>
+          <div class="setting-row">
+            <label class="setting-label" for="earThreshold">Blink Sensitivity</label>
+            <div class="slider-wrap">
+              <input type="range" id="earThreshold" min="10" max="40" step="1" value="22" />
+              <span class="slider-value" id="earThresholdVal">22</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Text → Morse ── -->
+        <div class="output-card morse-convert-card">
+          <div class="card-label">Text → Morse <span class="morse-convert-badge">Converter</span></div>
+          <div class="morse-convert-wrap">
+            <textarea id="morseTextInput" class="morse-conv-textarea" placeholder="Type text here…" rows="2" spellcheck="false"></textarea>
+            <div class="morse-conv-btns">
+              <button class="btn btn-morse-primary" id="morseEncodeBtn">· − Encode</button>
+              <button class="btn btn-ghost" id="morseCopyCodeBtn">📋 Copy Code</button>
+              <button class="btn btn-ghost" id="morsePlayFromTextBtn">🔊 Play Audio</button>
+            </div>
+            <div class="morse-conv-result" id="morseEncodedResult">—</div>
+          </div>
+        </div>
+
+        <!-- ── Morse → Text ── -->
+        <div class="output-card morse-decode-card">
+          <div class="card-label">Morse → Text <span class="morse-convert-badge">Decoder</span></div>
+          <div class="morse-convert-wrap">
+            <textarea id="morseCodeInput" class="morse-conv-textarea" placeholder="Type Morse here (dots · dashes −, space between letters, / between words)…" rows="2" spellcheck="false"></textarea>
+            <div class="morse-conv-btns">
+              <button class="btn btn-morse-primary" id="morseDecodeBtn">🔤 Decode</button>
+              <button class="btn btn-ghost" id="morseDecodeAppendBtn">➕ Append</button>
+            </div>
+            <div class="morse-conv-result morse-decoded-text" id="morseDecodedResult">—</div>
+          </div>
+        </div>
+
+        <!-- ── Manual Keyboard Input ── -->
+        <div class="output-card morse-keyboard-card">
+          <div class="card-label">Manual Keyboard Input <span class="morse-convert-badge">Interactive</span></div>
+          <p class="morse-kb-hint">Focus the pad below, then <strong>hold Space</strong> (or any key) to input Morse.<br>
+            Short press = <span class="dot-pill">·</span> &nbsp; Long press = <span class="dash-pill">−</span> &nbsp;
+            Release &amp; wait = letter commit &nbsp; | &nbsp; Longer gap = word space</p>
+          <div class="morse-kb-pad" id="morseKbPad" tabindex="0">
+            <div class="morse-kb-icon" id="morseKbIcon">⌨️</div>
+            <div class="morse-kb-status" id="morseKbStatus">Click here, then hold a key</div>
+            <div class="morse-kb-seq" id="morseKbSeq">—</div>
+            <div class="morse-kb-bar-wrap">
+              <div class="morse-kb-bar" id="morseKbBar"></div>
+            </div>
+          </div>
+          <div style="display:flex;gap:0.5rem;margin-top:0.7rem;flex-wrap:wrap">
+            <button class="btn btn-ghost" id="morseKbCommitBtn">✅ Commit Letter</button>
+            <button class="btn btn-ghost" id="morseKbSpaceBtn">⎵ Word Space</button>
+            <button class="btn btn-ghost" id="morseKbClearBtn">↩ Clear</button>
+          </div>
+        </div>
+
+        <!-- ── Audio Playback ── -->
+        <div class="output-card morse-audio-card">
+          <div class="card-label">Audio Playback <span class="morse-convert-badge">🔊 Sounds</span></div>
+          <div class="morse-audio-controls">
+            <div class="morse-audio-row">
+              <label class="setting-label" for="morseAudioWpm">Speed (WPM)</label>
+              <div class="slider-wrap">
+                <input type="range" id="morseAudioWpm" min="5" max="30" step="1" value="13" />
+                <span class="slider-value" id="morseAudioWpmVal">13</span>
+              </div>
+            </div>
+            <div class="morse-audio-row">
+              <label class="setting-label" for="morseAudioFreq">Tone (Hz)</label>
+              <div class="slider-wrap">
+                <input type="range" id="morseAudioFreq" min="400" max="900" step="10" value="600" />
+                <span class="slider-value" id="morseAudioFreqVal">600 Hz</span>
+              </div>
+            </div>
+            <div class="morse-audio-btn-row">
+              <button class="btn btn-morse-primary" id="morsePlayBtn">▶ Play Detected Text</button>
+              <button class="btn btn-ghost" id="morseStopBtn">⏹ Stop</button>
+            </div>
+            <div class="morse-audio-progress-wrap" id="morseAudioProgressWrap">
+              <div class="morse-audio-bar" id="morseAudioBar"></div>
+            </div>
+            <div class="morse-audio-status" id="morseAudioStatus">Ready</div>
+          </div>
+        </div>
+
+        <!-- Morse Reference Card -->
+        <div class="output-card ref-card">
+          <div class="card-label">Morse Code Reference</div>
+          <div class="morse-ref-grid" id="morseRefGrid"></div>
+        </div>
+      </div>
+
+
+      <!-- ══ BRAILLE PANEL ══ -->
+      <div id="braillePanel" class="hidden">
+
+        <!-- Text → Braille -->
+        <div class="output-card braille-convert-card">
+          <div class="card-label">Text → Braille <span class="braille-badge">Unicode ⠿</span></div>
+          <div class="braille-input-wrap">
+            <textarea id="brailleInput" class="braille-textarea"
+              placeholder="Type text here…" spellcheck="false" rows="3"></textarea>
+            <button class="btn btn-braille" id="brailleConvertBtn">⠿ Convert to Braille</button>
+          </div>
+          <div class="braille-output-wrap" id="brailleOutputWrap">
+            <div class="card-label" style="margin-top:0.8rem">Braille Output</div>
+            <div class="braille-result" id="brailleResult">—</div>
+            <div style="display:flex;gap:0.5rem;margin-top:0.6rem;flex-wrap:wrap">
+              <button class="btn btn-ghost" id="brailleCopyBtn">📋 Copy Braille</button>
+              <button class="btn btn-ghost" id="brailleAppendBtn">➕ Append to Detected Text</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Braille → Text -->
+        <div class="output-card braille-decode-card">
+          <div class="card-label">Braille → Text <span class="braille-badge">Decode</span></div>
+          <div class="braille-input-wrap">
+            <textarea id="brailleDecodeInput" class="braille-textarea"
+              placeholder="Paste Braille Unicode here (⠓⠑⠇⠇⠕)…" spellcheck="false" rows="3"></textarea>
+            <button class="btn btn-braille" id="brailleDecodeBtn">🔤 Decode to Text</button>
+          </div>
+          <div class="braille-output-wrap" id="brailleDecodeOutputWrap">
+            <div class="card-label" style="margin-top:0.8rem">Decoded Text</div>
+            <div class="braille-result braille-decoded-result" id="brailleDecodeResult">—</div>
+            <div style="display:flex;gap:0.5rem;margin-top:0.6rem;flex-wrap:wrap">
+              <button class="btn btn-ghost" id="brailleDecodeAppendBtn">➕ Append to Detected Text</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Braille Reference Grid -->
+        <div class="output-card ref-card">
+          <div class="card-label">Braille Alphabet Reference</div>
+          <div class="braille-ref-grid" id="brailleRefGrid"></div>
+        </div>
+
+      </div>
+
+
+      <!-- ══ LANGUAGE TRANSLATION PANEL ══ -->
+      <div id="translatePanel" class="hidden">
+
+        <!-- Language Selector Card -->
+        <div class="output-card translate-lang-card">
+          <div class="card-label">Language Translation <span class="translate-badge">🌐 Offline</span></div>
+          <div class="translate-lang-row">
+            <div class="translate-lang-group">
+              <label class="translate-lang-label" for="translateFrom">From</label>
+              <select id="translateFrom" class="translate-select">
+                <option value="en">🇬🇧 English</option>
+                <option value="es">🇪🇸 Spanish</option>
+                <option value="fr">🇫🇷 French</option>
+                <option value="de">🇩🇪 German</option>
+                <option value="it">🇮🇹 Italian</option>
+                <option value="pt">🇧🇷 Portuguese</option>
+                <option value="hi">🇮🇳 Hindi</option>
+                <option value="ar">🇸🇦 Arabic</option>
+                <option value="zh">🇨🇳 Chinese</option>
+                <option value="ja">🇯🇵 Japanese</option>
+                <option value="ko">🇰🇷 Korean</option>
+                <option value="ru">🇷🇺 Russian</option>
+              </select>
+            </div>
+            <button class="btn btn-ghost translate-swap-btn" id="translateSwapBtn" title="Swap languages">⇄</button>
+            <div class="translate-lang-group">
+              <label class="translate-lang-label" for="translateTo">To</label>
+              <select id="translateTo" class="translate-select">
+                <option value="en">🇬🇧 English</option>
+                <option value="es" selected>🇪🇸 Spanish</option>
+                <option value="fr">🇫🇷 French</option>
+                <option value="de">🇩🇪 German</option>
+                <option value="it">🇮🇹 Italian</option>
+                <option value="pt">🇧🇷 Portuguese</option>
+                <option value="hi">🇮🇳 Hindi</option>
+                <option value="ar">🇸🇦 Arabic</option>
+                <option value="zh">🇨🇳 Chinese</option>
+                <option value="ja">🇯🇵 Japanese</option>
+                <option value="ko">🇰🇷 Korean</option>
+                <option value="ru">🇷🇺 Russian</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Source text card -->
+        <div class="output-card translate-input-card">
+          <div class="card-label">Source Text <span class="translate-char-count" id="translateCharCount">0 chars</span></div>
+          <textarea id="translateInput" class="translate-textarea" placeholder="Type or paste text to translate… You can also use the Detected Text as source." rows="5" spellcheck="false"></textarea>
+          <div class="translate-input-btns">
+            <button class="btn btn-translate-primary" id="translateBtn">🌐 Translate</button>
+            <button class="btn btn-ghost" id="translateFromDetectedBtn">📋 Use Detected Text</button>
+            <button class="btn btn-ghost" id="translateClearBtn">↩ Clear</button>
+          </div>
+        </div>
+
+        <!-- Result card -->
+        <div class="output-card translate-result-card">
+          <div class="card-label">Translation Result <span class="translate-engine-badge" id="translateEngineBadge">Offline Dictionary</span></div>
+          <div class="translate-result-area" id="translateResult">
+            <span class="translate-placeholder">Translation will appear here…</span>
+          </div>
+          <div class="translate-result-btns">
+            <button class="btn btn-ghost" id="translateCopyBtn">📋 Copy Translation</button>
+            <button class="btn btn-ghost" id="translateAppendBtn">➕ Append to Detected Text</button>
+            <button class="btn btn-accent" id="translateSpeakBtn">🔊 Speak Translation</button>
+          </div>
+        </div>
+
+        <!-- Phrase Quick Lookup Card -->
+        <div class="output-card translate-phrases-card">
+          <div class="card-label">Common Phrases <span class="translate-badge">Quick Look-up</span></div>
+          <div class="translate-phrases-grid" id="translatePhrasesGrid"></div>
+        </div>
+
+      </div>
+
+
+      <!-- ══ Shared Text Output Card ══ -->
+      <div class="output-card text-card">
+        <div class="card-label">
+          Detected Text
+          <button id="copyBtn" class="copy-btn" title="Copy to clipboard">📋 Copy</button>
+        </div>
+        <textarea id="detectedText" placeholder="Detected text will appear here…" spellcheck="false"
+          readonly></textarea>
+        <div class="text-footer">
+          <span class="char-count" id="charCount">0 characters</span>
+          <span class="stt-status" id="sttStatus"></span>
+          <button id="speakBtn" class="btn btn-accent">🔊 Speak</button>
+        </div>
+        <!-- TTS Controls -->
+        <div class="tts-controls" id="ttsControls">
+          <div class="tts-control-row">
+            <label class="setting-label" for="ttsVoiceSelect">Voice</label>
+            <select id="ttsVoiceSelect" class="tts-select"></select>
+          </div>
+          <div class="tts-control-row">
+            <label class="setting-label" for="ttsRate">Rate</label>
+            <div class="slider-wrap">
+              <input type="range" id="ttsRate" min="0.5" max="2" step="0.1" value="1" />
+              <span class="slider-value" id="ttsRateVal">1.0×</span>
+            </div>
+          </div>
+          <div class="tts-control-row">
+            <label class="setting-label" for="ttsPitch">Pitch</label>
+            <div class="slider-wrap">
+              <input type="range" id="ttsPitch" min="0.5" max="2" step="0.1" value="1" />
+              <span class="slider-value" id="ttsPitchVal">1.0</span>
+            </div>
+          </div>
+          <div class="tts-control-row">
+            <button class="btn btn-ghost" id="ttsStopBtn">⏹ Stop Speaking</button>
+          </div>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- Tesseract.js OCR -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.4/dist/tesseract.min.js"></script>
+  <!-- TensorFlow.js -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.17.0/dist/tf.min.js"></script>
+  <!-- MediaPipe Hands -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js" crossorigin="anonymous"></script>
+  <script
+    src="https://cdn.jsdelivr.net/npm/@tensorflow-models/hand-pose-detection@2.0.1/dist/hand-pose-detection.min.js"></script>
+  <!-- MediaPipe Face Mesh -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh.js"
+    crossorigin="anonymous"></script>
+  <script
+    src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection@1.0.5/dist/face-landmarks-detection.min.js"></script>
+  <script src="app.js"></script>
+</body>
+
+</html>
