@@ -3086,11 +3086,17 @@ function initSTT() {
                 interim += transcript;
             }
         }
-        if (final_) appendText(final_);
+
+        if (final_) {
+            // Route final text to the active module's input box
+            sttRouteText(final_.trim());
+        }
+
         if (sttStatus) {
             sttStatus.textContent = interim ? `🎤 ${interim}` : '🎤 Listening…';
         }
     };
+
 
     sttRecognition.onerror = (event) => {
         console.warn('STT error:', event.error);
@@ -3175,8 +3181,66 @@ if (sttBtn) {
         }
     });
 }
+/**
+ * Route STT-recognized text to the active module's input box.
+ * Modes with a dedicated text input get it pasted there directly.
+ * All other modes (ASL, Gestures, Words, OCR) append to the shared detected text area.
+ */
+function sttRouteText(text) {
+    if (!text) return;
+
+    switch (currentMode) {
+        case 'morse': {
+            // Fill the Text→Morse encoder input and auto-encode
+            const mInput = document.getElementById('morseTextInput');
+            const mBtn   = document.getElementById('morseEncodeBtn');
+            if (mInput) {
+                mInput.value = (mInput.value ? mInput.value + ' ' : '') + text;
+                mInput.dispatchEvent(new Event('input'));
+                showToast('🎤 STT → Morse input filled');
+                if (mBtn) mBtn.click();   // auto-encode
+            } else {
+                appendText(text);
+            }
+            break;
+        }
+        case 'braille': {
+            // Fill the Text→Braille encoder input and auto-convert
+            const bInput = document.getElementById('brailleInput');
+            const bBtn   = document.getElementById('brailleConvertBtn');
+            if (bInput) {
+                bInput.value = (bInput.value ? bInput.value + ' ' : '') + text;
+                bInput.dispatchEvent(new Event('input'));
+                showToast('🎤 STT → Braille input filled');
+                if (bBtn) bBtn.click();   // auto-convert
+            } else {
+                appendText(text);
+            }
+            break;
+        }
+        case 'translate': {
+            // Fill the translation source box and auto-translate
+            const tInput = document.getElementById('translateInput');
+            const tBtn   = document.getElementById('translateBtn');
+            if (tInput) {
+                tInput.value = (tInput.value ? tInput.value + ' ' : '') + text;
+                tInput.dispatchEvent(new Event('input'));  // update char count
+                showToast('🎤 STT → Translate input filled');
+                if (tBtn) tBtn.click();   // auto-translate
+            } else {
+                appendText(text);
+            }
+            break;
+        }
+        default:
+            // ASL, Gestures, Words, Morse-blink, OCR — append to shared area
+            appendText(text);
+            break;
+    }
+}
 
 initSTT();
+
 
 
 /* ════════════════════════════════════════════════
@@ -3247,40 +3311,75 @@ if (ttsStopBtn) {
     });
 }
 
-// Bulletproof TTS speak — handles Chrome's speechSynthesis freeze bug
+// TTS speak — handles Chromium Linux voices:0 and synthesis-failed gracefully
 function doTTSSpeak(text) {
     if (!text) { showToast('⚠️ Nothing to speak!'); return; }
-    console.log('[TTS] Speaking:', text.slice(0, 40), '| voices:', ttsVoices.length, '| paused:', speechSynthesis.paused);
+
+    // On Linux Chromium, voices may be 0 — refresh the list first
+    const freshVoices = speechSynthesis.getVoices();
+    if (freshVoices.length > ttsVoices.length) {
+        ttsVoices = freshVoices;
+        populateTTSVoices();
+    }
 
     const utter = new SpeechSynthesisUtterance(text);
     utter.rate  = ttsRateEl  ? parseFloat(ttsRateEl.value)  : 1;
     utter.pitch = ttsPitchEl ? parseFloat(ttsPitchEl.value) : 1;
 
-    // Look up voice by name stored in dropdown
+    // Look up voice by name stored in dropdown (skip if voices empty)
     if (ttsVoices.length > 0 && ttsVoiceSelect && ttsVoiceSelect.value) {
         const v = ttsVoices.find(v => v.name === ttsVoiceSelect.value);
-        if (v) { utter.voice = v; console.log('[TTS] Using voice:', v.name); }
+        if (v) utter.voice = v;
     }
 
-    utter.onstart = () => console.log('[TTS] onstart fired');
-    utter.onend   = () => console.log('[TTS] onend fired');
-    utter.onerror = (e) => { console.error('[TTS] utter error:', e.error); showToast('❌ TTS failed: ' + e.error); };
+    utter.onerror = (e) => {
+        console.error('[TTS] error:', e.error);
+        if (e.error === 'synthesis-failed' || e.error === 'synthesis-unavailable') {
+            const isLinux = navigator.platform.toLowerCase().includes('linux') ||
+                            navigator.userAgent.toLowerCase().includes('linux');
+            if (isLinux) {
+                showToast('❌ TTS unavailable. Relaunch Chromium with: --enable-speech-dispatcher');
+                // Show persistent info banner
+                if (!document.getElementById('ttsBanner')) {
+                    const banner = document.createElement('div');
+                    banner.id = 'ttsBanner';
+                    banner.style.cssText = `position:fixed;bottom:70px;left:50%;transform:translateX(-50%);
+                        background:#1e293b;border:1px solid rgba(239,68,68,0.4);border-radius:10px;
+                        padding:10px 16px;font-size:0.78rem;color:#f87171;z-index:9999;max-width:420px;
+                        text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.5);`;
+                    banner.innerHTML = `🐧 <b>Linux Chromium TTS fix:</b><br>
+                        Close Chromium and relaunch with:<br>
+                        <code style="background:#0f172a;padding:2px 6px;border-radius:4px;color:#a78bfa">
+                        chromium --enable-speech-dispatcher</code><br>
+                        <small style="opacity:0.7">Or use Firefox — TTS works out of the box there.</small>
+                        <button onclick="this.parentNode.remove()" style="display:block;margin:6px auto 0;
+                        background:transparent;border:1px solid #f87171;border-radius:6px;color:#f87171;
+                        padding:2px 10px;cursor:pointer;font-size:0.72rem;">Dismiss</button>`;
+                    document.body.appendChild(banner);
+                    setTimeout(() => banner?.remove(), 15000);
+                }
+            } else {
+                showToast('❌ TTS synthesis failed – try refreshing the page');
+            }
+        } else {
+            showToast('❌ TTS error: ' + e.error);
+        }
+    };
 
     // Chrome freeze fix: resume() before cancel()/speak()
     try { speechSynthesis.resume(); } catch(_) {}
     speechSynthesis.cancel();
-    // Delay speak after cancel (Chrome drops speech when called too quickly)
     setTimeout(() => {
         try {
             speechSynthesis.speak(utter);
-            showToast('🔊 Speaking…');
-            console.log('[TTS] speak() called, pending:', speechSynthesis.pending, 'speaking:', speechSynthesis.speaking);
+            if (ttsVoices.length > 0) showToast('🔊 Speaking…');
         } catch(e) {
             showToast('❌ TTS error: ' + e.message);
             console.error('[TTS] speak() threw:', e);
         }
     }, 150);
 }
+
 
 speakBtn.onclick = () => {
     const t = detectedText.value.trim();
