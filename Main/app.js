@@ -875,10 +875,12 @@ const ocrPreviewImg = document.getElementById('ocrPreviewImg');
 const ocrClearImg = document.getElementById('ocrClearImg');
 const ocrLangEl = document.getElementById('ocrLang');
 const ocrAppendToggle = document.getElementById('ocrAppendToggle');
+const ocrMirrorToggleEl = document.getElementById('ocrMirrorToggle');
 
 let ocrUploadedImage = null;   // data URL of uploaded image
 let ocrWorker = null;          // Tesseract worker (lazy init)
 let ocrScanning = false;
+let ocrMirrorCamera = true;    // whether to mirror the webcam frame before OCR
 
 
 function switchMode(mode) {
@@ -1056,8 +1058,8 @@ async function runOCR(source, isVideo = false) {
         // ── Preprocess ──────────────────────────────────────────────────
         let processedCanvas;
         if (isVideo) {
-            // source is the webcam video element — mirror to un-flip
-            processedCanvas = preprocessImage(source, true);
+            // source is the webcam video element — mirror according to toggle
+            processedCanvas = preprocessImage(source, ocrMirrorCamera);
         } else {
             // source is a data-URL (uploaded image)
             processedCanvas = await preprocessDataUrl(source);
@@ -1167,12 +1169,18 @@ ocrClearImg.addEventListener('click', e => {
 
 ocrScanCamBtn.addEventListener('click', async () => {
     if (!cameraActive) { showToast('⚠️ Start the camera first!'); return; }
-    await runOCR(captureCameraFrame(), true);  // video element → preprocessImage (no mirror)
+    await runOCR(captureCameraFrame(), true);  // video element → preprocessImage
 });
 
 ocrScanImgBtn.addEventListener('click', async () => {
     if (!ocrUploadedImage) { showToast('⚠️ Upload an image first!'); return; }
     await runOCR(ocrUploadedImage, false);       // false = data-URL, no mirror needed
+});
+
+ocrMirrorToggleEl.addEventListener('change', () => {
+    ocrMirrorCamera = ocrMirrorToggleEl.checked;
+    webcamEl.style.transform = ocrMirrorCamera ? 'scaleX(-1)' : 'scaleX(1)';
+    canvasEl.style.transform  = ocrMirrorCamera ? 'scaleX(-1)' : 'scaleX(1)';
 });
 
 /* ════════════════════════════════════════════════
