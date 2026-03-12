@@ -46,6 +46,7 @@ const spaceBtn = document.getElementById('spaceBtn');
 const backspaceBtn = document.getElementById('backspaceBtn');
 const copyBtn = document.getElementById('copyBtn');
 const speakBtn = document.getElementById('speakBtn');
+const printBrailleBtn = document.getElementById('printBrailleBtn');
 const holdDurationEl = document.getElementById('holdDuration');
 const holdDurationValEl = document.getElementById('holdDurationVal');
 const minConfEl = document.getElementById('minConfidence');
@@ -1180,7 +1181,7 @@ ocrScanImgBtn.addEventListener('click', async () => {
 ocrMirrorToggleEl.addEventListener('change', () => {
     ocrMirrorCamera = ocrMirrorToggleEl.checked;
     webcamEl.style.transform = ocrMirrorCamera ? 'scaleX(-1)' : 'scaleX(1)';
-    canvasEl.style.transform  = ocrMirrorCamera ? 'scaleX(-1)' : 'scaleX(1)';
+    canvasEl.style.transform = ocrMirrorCamera ? 'scaleX(-1)' : 'scaleX(1)';
 });
 
 /* ════════════════════════════════════════════════
@@ -1220,8 +1221,37 @@ speakBtn.onclick = () => {
     const t = detectedText.value.trim();
     if (!t) { showToast('⚠️ Type or detect some text first!'); return; }
     try { speechSynthesis.resume(); speechSynthesis.speak(new SpeechSynthesisUtterance(t)); showToast('🔊 Speaking…'); }
-    catch(e) { showToast('❌ TTS error: ' + e.message); console.error('TTS:', e); }
+    catch (e) { showToast('❌ TTS error: ' + e.message); console.error('TTS:', e); }
 };
+
+printBrailleBtn.addEventListener('click', async () => {
+    // Read from the Braille section's text input
+    const brailleInput = document.getElementById('brailleInput');
+    const text = brailleInput ? brailleInput.value.trim() : '';
+    if (!text) {
+        showToast('⚠️ Type some text in the Braille input first!');
+        return;
+    }
+    showToast('⠿ Sending to Braille Printer...');
+    try {
+        const response = await fetch('http://10.47.140.131:5001/print-braille', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ text })
+        });
+
+        if (response.ok) {
+            showToast('✅ Braille printing started!');
+        } else {
+            showToast('❌ Error starting Braille print');
+        }
+    } catch (err) {
+        showToast('❌ Connection error to Raspberry Pi. Is the server running?');
+        console.error('Braille print error:', err);
+    }
+});
 
 // ASL settings
 holdDurationEl.addEventListener('input', () => {
@@ -1973,7 +2003,7 @@ function brailleToText(braille) {
         const decoded = BRAILLE_REVERSE[c] || c;
         if (inNumber) {
             // Digits share braille patterns with A-J; map back to digit
-            const DIGIT_MAP = { 'A':'1','B':'2','C':'3','D':'4','E':'5','F':'6','G':'7','H':'8','I':'9','J':'0' };
+            const DIGIT_MAP = { 'A': '1', 'B': '2', 'C': '3', 'D': '4', 'E': '5', 'F': '6', 'G': '7', 'H': '8', 'I': '9', 'J': '0' };
             result += DIGIT_MAP[decoded] || decoded;
         } else if (capitalize) {
             result += decoded.toUpperCase();
@@ -2009,16 +2039,16 @@ function buildBrailleRefGrid() {
 }
 
 /* ── DOM refs ── */
-const braillePanel       = document.getElementById('braillePanel');
-const brailleInputEl     = document.getElementById('brailleInput');
-const brailleResultEl    = document.getElementById('brailleResult');
-const brailleConvertBtn  = document.getElementById('brailleConvertBtn');
-const brailleCopyBtn     = document.getElementById('brailleCopyBtn');
-const brailleAppendBtn   = document.getElementById('brailleAppendBtn');
-const brailleDecodeInputEl      = document.getElementById('brailleDecodeInput');
-const brailleDecodeResultEl     = document.getElementById('brailleDecodeResult');
-const brailleDecodeBtn          = document.getElementById('brailleDecodeBtn');
-const brailleDecodeAppendBtn    = document.getElementById('brailleDecodeAppendBtn');
+const braillePanel = document.getElementById('braillePanel');
+const brailleInputEl = document.getElementById('brailleInput');
+const brailleResultEl = document.getElementById('brailleResult');
+const brailleConvertBtn = document.getElementById('brailleConvertBtn');
+const brailleCopyBtn = document.getElementById('brailleCopyBtn');
+const brailleAppendBtn = document.getElementById('brailleAppendBtn');
+const brailleDecodeInputEl = document.getElementById('brailleDecodeInput');
+const brailleDecodeResultEl = document.getElementById('brailleDecodeResult');
+const brailleDecodeBtn = document.getElementById('brailleDecodeBtn');
+const brailleDecodeAppendBtn = document.getElementById('brailleDecodeAppendBtn');
 
 /* ── Convert: Text → Braille ── */
 brailleConvertBtn.addEventListener('click', () => {
@@ -2100,10 +2130,10 @@ function textToMorse(text) {
     }).join(' / ');
 }
 
-const morseTextInputEl    = document.getElementById('morseTextInput');
+const morseTextInputEl = document.getElementById('morseTextInput');
 const morseEncodedResultEl = document.getElementById('morseEncodedResult');
-const morseEncodeBtn      = document.getElementById('morseEncodeBtn');
-const morseCopyCodeBtn    = document.getElementById('morseCopyCodeBtn');
+const morseEncodeBtn = document.getElementById('morseEncodeBtn');
+const morseCopyCodeBtn = document.getElementById('morseCopyCodeBtn');
 const morsePlayFromTextBtn = document.getElementById('morsePlayFromTextBtn');
 
 // Live encode as user types
@@ -2152,9 +2182,9 @@ function morseToText(morseStr) {
     }).join(' ');
 }
 
-const morseCodeInputEl    = document.getElementById('morseCodeInput');
+const morseCodeInputEl = document.getElementById('morseCodeInput');
 const morseDecodedResultEl = document.getElementById('morseDecodedResult');
-const morseDecodeBtn      = document.getElementById('morseDecodeBtn');
+const morseDecodeBtn = document.getElementById('morseDecodeBtn');
 const morseDecodeAppendBtnEl = document.getElementById('morseDecodeAppendBtn');
 
 // Live decode
@@ -2186,14 +2216,14 @@ let morseIsPlaying = false;
 let morseAudioWpm = 13;
 let morseAudioFreq = 600;
 
-const morsePlayBtn        = document.getElementById('morsePlayBtn');
-const morseStopBtn        = document.getElementById('morseStopBtn');
-const morseAudioWpmEl     = document.getElementById('morseAudioWpm');
-const morseAudioWpmValEl  = document.getElementById('morseAudioWpmVal');
-const morseAudioFreqEl    = document.getElementById('morseAudioFreq');
+const morsePlayBtn = document.getElementById('morsePlayBtn');
+const morseStopBtn = document.getElementById('morseStopBtn');
+const morseAudioWpmEl = document.getElementById('morseAudioWpm');
+const morseAudioWpmValEl = document.getElementById('morseAudioWpmVal');
+const morseAudioFreqEl = document.getElementById('morseAudioFreq');
 const morseAudioFreqValEl = document.getElementById('morseAudioFreqVal');
-const morseAudioBarEl     = document.getElementById('morseAudioBar');
-const morseAudioStatusEl  = document.getElementById('morseAudioStatus');
+const morseAudioBarEl = document.getElementById('morseAudioBar');
+const morseAudioStatusEl = document.getElementById('morseAudioStatus');
 
 morseAudioWpmEl.addEventListener('input', () => {
     morseAudioWpm = parseInt(morseAudioWpmEl.value);
@@ -2329,7 +2359,7 @@ function stopMorseAudio() {
     morsePlayScheduled.forEach(id => clearTimeout(id));
     morsePlayScheduled = [];
     if (audioCtx) {
-        try { audioCtx.close(); } catch (_) {}
+        try { audioCtx.close(); } catch (_) { }
         audioCtx = null;
     }
     morsePlayBtn.disabled = false;
@@ -2348,26 +2378,26 @@ morseStopBtn.addEventListener('click', stopMorseAudio);
 
 /* ─── Manual Keyboard Input Pad ─── */
 
-const morseKbPad       = document.getElementById('morseKbPad');
-const morseKbIconEl    = document.getElementById('morseKbIcon');
-const morseKbStatusEl  = document.getElementById('morseKbStatus');
-const morseKbSeqEl     = document.getElementById('morseKbSeq');
-const morseKbBarEl     = document.getElementById('morseKbBar');
+const morseKbPad = document.getElementById('morseKbPad');
+const morseKbIconEl = document.getElementById('morseKbIcon');
+const morseKbStatusEl = document.getElementById('morseKbStatus');
+const morseKbSeqEl = document.getElementById('morseKbSeq');
+const morseKbBarEl = document.getElementById('morseKbBar');
 const morseKbCommitBtn = document.getElementById('morseKbCommitBtn');
-const morseKbSpaceBtn  = document.getElementById('morseKbSpaceBtn');
-const morseKbClearBtn  = document.getElementById('morseKbClearBtn');
+const morseKbSpaceBtn = document.getElementById('morseKbSpaceBtn');
+const morseKbClearBtn = document.getElementById('morseKbClearBtn');
 
 let kbSymbols = [];           // current letter's symbols
 let kbKeyDown = false;        // is key currently held?
 let kbPressStart = null;      // when key was pressed
 let kbLetterTimer = null;     // auto-commit letter timer
-let kbWordTimer   = null;     // auto-commit word (space) timer
+let kbWordTimer = null;     // auto-commit word (space) timer
 let kbRafId = null;           // rAF for bar progress
 
 // DOT_MS derived from dotMaxMs (shared setting), so keyboard uses same thresholds
-function kbDotMs()   { return dotMaxMs; }
-function kbLetterMs(){ return letterGapMs; }
-function kbWordMs()  { return wordGapMs; }
+function kbDotMs() { return dotMaxMs; }
+function kbLetterMs() { return letterGapMs; }
+function kbWordMs() { return wordGapMs; }
 
 function kbUpdateSeq() {
     const seq = kbSymbols.join(' ');
@@ -2400,13 +2430,13 @@ function kbBeepFeedback(hz, ms) {
     try {
         const ctx = getOrCreateAudioCtx();
         scheduleBeep(ctx, ctx.currentTime, ms / 1000, hz);
-    } catch (_) {}
+    } catch (_) { }
 }
 
 function kbProgressLoop() {
     if (!kbKeyDown || !kbPressStart) return;
     const elapsed = performance.now() - kbPressStart;
-    const thresh  = kbDotMs() * 3;  // dash threshold (3× dot)
+    const thresh = kbDotMs() * 3;  // dash threshold (3× dot)
     const pct = Math.min((elapsed / thresh) * 100, 100);
     morseKbBarEl.style.width = pct + '%';
     // Switch colour: yellow → orange as approaching dash
@@ -2474,7 +2504,7 @@ morseKbPad.addEventListener('touchend', e => {
 
 // Focus style
 morseKbPad.addEventListener('focus', () => morseKbPad.classList.add('focused'));
-morseKbPad.addEventListener('blur',  () => morseKbPad.classList.remove('focused'));
+morseKbPad.addEventListener('blur', () => morseKbPad.classList.remove('focused'));
 
 // Manual buttons
 morseKbCommitBtn.addEventListener('click', () => {
@@ -2502,16 +2532,16 @@ morseKbClearBtn.addEventListener('click', () => {
 
 const translatePanel = document.getElementById('translatePanel');
 const translateFromEl = document.getElementById('translateFrom');
-const translateToEl   = document.getElementById('translateTo');
+const translateToEl = document.getElementById('translateTo');
 const translateSwapBtn = document.getElementById('translateSwapBtn');
 const translateInputEl = document.getElementById('translateInput');
-const translateBtnEl   = document.getElementById('translateBtn');
+const translateBtnEl = document.getElementById('translateBtn');
 const translateFromDetectedBtn = document.getElementById('translateFromDetectedBtn');
 const translateClearBtn = document.getElementById('translateClearBtn');
 const translateResultEl = document.getElementById('translateResult');
-const translateCopyBtn  = document.getElementById('translateCopyBtn');
+const translateCopyBtn = document.getElementById('translateCopyBtn');
 const translateAppendBtn = document.getElementById('translateAppendBtn');
-const translateSpeakBtn  = document.getElementById('translateSpeakBtn');
+const translateSpeakBtn = document.getElementById('translateSpeakBtn');
 const translateCharCountEl = document.getElementById('translateCharCount');
 const translateEngineBadgeEl = document.getElementById('translateEngineBadge');
 const translatePhrasesGrid = document.getElementById('translatePhrasesGrid');
@@ -2524,272 +2554,272 @@ const translatePhrasesGrid = document.getElementById('translatePhrasesGrid');
  */
 const EN_DICT = {
     es: { // English → Spanish
-        'hello':'hola','hi':'hola','bye':'adiós','goodbye':'adiós','yes':'sí','no':'no',
-        'please':'por favor','thank you':'gracias','thanks':'gracias','sorry':'lo siento',
-        'excuse me':'disculpe','help':'ayuda','stop':'parar','good':'bueno','bad':'malo',
-        'morning':'mañana','evening':'tarde','night':'noche','today':'hoy','tomorrow':'mañana',
-        'water':'agua','food':'comida','eat':'comer','drink':'beber','sleep':'dormir',
-        'love':'amor','happy':'feliz','sad':'triste','angry':'enojado','scared':'asustado',
-        'big':'grande','small':'pequeño','fast':'rápido','slow':'lento','hot':'caliente',
-        'cold':'frío','new':'nuevo','old':'viejo','beautiful':'hermoso','ugly':'feo',
-        'strong':'fuerte','weak':'débil','open':'abrir','close':'cerrar','go':'ir',
-        'come':'venir','run':'correr','walk':'caminar','read':'leer','write':'escribir',
-        'speak':'hablar','listen':'escuchar','see':'ver','hear':'oír','think':'pensar',
-        'know':'saber','want':'querer','need':'necesitar','have':'tener','give':'dar',
-        'take':'tomar','make':'hacer','buy':'comprar','pay':'pagar','work':'trabajar',
-        'play':'jugar','learn':'aprender','understand':'entender','call':'llamar',
-        'wait':'esperar','meet':'conocer','father':'padre','mother':'madre',
-        'son':'hijo','daughter':'hija','brother':'hermano','sister':'hermana',
-        'friend':'amigo','family':'familia','man':'hombre','woman':'mujer',
-        'child':'niño','doctor':'médico','police':'policía','fire':'fuego',
-        'house':'casa','school':'escuela','hospital':'hospital','store':'tienda',
-        'car':'coche','bus':'autobús','phone':'teléfono','book':'libro',
-        'money':'dinero','red':'rojo','blue':'azul','green':'verde','black':'negro',
-        'white':'blanco','yellow':'amarillo','one':'uno','two':'dos','three':'tres',
-        'four':'cuatro','five':'cinco','six':'seis','seven':'siete','eight':'ocho',
-        'nine':'nueve','ten':'diez','where':'dónde','when':'cuándo','what':'qué',
-        'who':'quién','why':'por qué','how':'cómo','i':'yo','you':'tú',
-        'he':'él','she':'ella','we':'nosotros','they':'ellos','my':'mi',
-        'your':'tu','his':'su','her':'su','their':'su','our':'nuestro',
-        'and':'y','or':'o','but':'pero','because':'porque','if':'si',
-        'that':'que','this':'esto','very':'muy','not':'no','with':'con',
-        'without':'sin','for':'para','from':'de','to':'a','in':'en','on':'en',
-        'at':'en','of':'de','a':'un','the':'el','is':'es','are':'son',
-        'was':'era','will':'será','can':'puede','should':'debería','must':'debe',
-        'i love you':'te quiero','good morning':'buenos días','good night':'buenas noches',
-        'how are you':'¿cómo estás?','thank you very much':'muchas gracias',
-        'where is the bathroom':'¿dónde está el baño?','i need help':'necesito ayuda',
-        'call the police':'llama a la policía','i am lost':'estoy perdido',
+        'hello': 'hola', 'hi': 'hola', 'bye': 'adiós', 'goodbye': 'adiós', 'yes': 'sí', 'no': 'no',
+        'please': 'por favor', 'thank you': 'gracias', 'thanks': 'gracias', 'sorry': 'lo siento',
+        'excuse me': 'disculpe', 'help': 'ayuda', 'stop': 'parar', 'good': 'bueno', 'bad': 'malo',
+        'morning': 'mañana', 'evening': 'tarde', 'night': 'noche', 'today': 'hoy', 'tomorrow': 'mañana',
+        'water': 'agua', 'food': 'comida', 'eat': 'comer', 'drink': 'beber', 'sleep': 'dormir',
+        'love': 'amor', 'happy': 'feliz', 'sad': 'triste', 'angry': 'enojado', 'scared': 'asustado',
+        'big': 'grande', 'small': 'pequeño', 'fast': 'rápido', 'slow': 'lento', 'hot': 'caliente',
+        'cold': 'frío', 'new': 'nuevo', 'old': 'viejo', 'beautiful': 'hermoso', 'ugly': 'feo',
+        'strong': 'fuerte', 'weak': 'débil', 'open': 'abrir', 'close': 'cerrar', 'go': 'ir',
+        'come': 'venir', 'run': 'correr', 'walk': 'caminar', 'read': 'leer', 'write': 'escribir',
+        'speak': 'hablar', 'listen': 'escuchar', 'see': 'ver', 'hear': 'oír', 'think': 'pensar',
+        'know': 'saber', 'want': 'querer', 'need': 'necesitar', 'have': 'tener', 'give': 'dar',
+        'take': 'tomar', 'make': 'hacer', 'buy': 'comprar', 'pay': 'pagar', 'work': 'trabajar',
+        'play': 'jugar', 'learn': 'aprender', 'understand': 'entender', 'call': 'llamar',
+        'wait': 'esperar', 'meet': 'conocer', 'father': 'padre', 'mother': 'madre',
+        'son': 'hijo', 'daughter': 'hija', 'brother': 'hermano', 'sister': 'hermana',
+        'friend': 'amigo', 'family': 'familia', 'man': 'hombre', 'woman': 'mujer',
+        'child': 'niño', 'doctor': 'médico', 'police': 'policía', 'fire': 'fuego',
+        'house': 'casa', 'school': 'escuela', 'hospital': 'hospital', 'store': 'tienda',
+        'car': 'coche', 'bus': 'autobús', 'phone': 'teléfono', 'book': 'libro',
+        'money': 'dinero', 'red': 'rojo', 'blue': 'azul', 'green': 'verde', 'black': 'negro',
+        'white': 'blanco', 'yellow': 'amarillo', 'one': 'uno', 'two': 'dos', 'three': 'tres',
+        'four': 'cuatro', 'five': 'cinco', 'six': 'seis', 'seven': 'siete', 'eight': 'ocho',
+        'nine': 'nueve', 'ten': 'diez', 'where': 'dónde', 'when': 'cuándo', 'what': 'qué',
+        'who': 'quién', 'why': 'por qué', 'how': 'cómo', 'i': 'yo', 'you': 'tú',
+        'he': 'él', 'she': 'ella', 'we': 'nosotros', 'they': 'ellos', 'my': 'mi',
+        'your': 'tu', 'his': 'su', 'her': 'su', 'their': 'su', 'our': 'nuestro',
+        'and': 'y', 'or': 'o', 'but': 'pero', 'because': 'porque', 'if': 'si',
+        'that': 'que', 'this': 'esto', 'very': 'muy', 'not': 'no', 'with': 'con',
+        'without': 'sin', 'for': 'para', 'from': 'de', 'to': 'a', 'in': 'en', 'on': 'en',
+        'at': 'en', 'of': 'de', 'a': 'un', 'the': 'el', 'is': 'es', 'are': 'son',
+        'was': 'era', 'will': 'será', 'can': 'puede', 'should': 'debería', 'must': 'debe',
+        'i love you': 'te quiero', 'good morning': 'buenos días', 'good night': 'buenas noches',
+        'how are you': '¿cómo estás?', 'thank you very much': 'muchas gracias',
+        'where is the bathroom': '¿dónde está el baño?', 'i need help': 'necesito ayuda',
+        'call the police': 'llama a la policía', 'i am lost': 'estoy perdido',
     },
     fr: { // English → French
-        'hello':'bonjour','hi':'salut','bye':'au revoir','goodbye':'au revoir',
-        'yes':'oui','no':'non','please':'s\'il vous plaît','thank you':'merci',
-        'thanks':'merci','sorry':'désolé','excuse me':'excusez-moi','help':'aide',
-        'stop':'arrêt','good':'bon','bad':'mauvais','morning':'matin','evening':'soir',
-        'night':'nuit','today':'aujourd\'hui','tomorrow':'demain','water':'eau',
-        'food':'nourriture','eat':'manger','drink':'boire','sleep':'dormir',
-        'love':'amour','happy':'heureux','sad':'triste','angry':'en colère',
-        'big':'grand','small':'petit','fast':'rapide','slow':'lent','hot':'chaud',
-        'cold':'froid','new':'nouveau','old':'vieux','beautiful':'beau','ugly':'laid',
-        'open':'ouvrir','close':'fermer','go':'aller','come':'venir','run':'courir',
-        'walk':'marcher','read':'lire','write':'écrire','speak':'parler',
-        'listen':'écouter','see':'voir','hear':'entendre','think':'penser',
-        'know':'savoir','want':'vouloir','need':'avoir besoin','have':'avoir',
-        'give':'donner','take':'prendre','make':'faire','buy':'acheter',
-        'work':'travailler','play':'jouer','learn':'apprendre','call':'appeler',
-        'wait':'attendre','father':'père','mother':'mère','brother':'frère',
-        'sister':'sœur','friend':'ami','family':'famille','man':'homme',
-        'woman':'femme','child':'enfant','doctor':'médecin','police':'police',
-        'house':'maison','school':'école','car':'voiture','phone':'téléphone',
-        'money':'argent','red':'rouge','blue':'bleu','green':'vert','black':'noir',
-        'white':'blanc','yellow':'jaune','one':'un','two':'deux','three':'trois',
-        'four':'quatre','five':'cinq','where':'où','when':'quand','what':'quoi',
-        'who':'qui','why':'pourquoi','how':'comment','i':'je','you':'vous',
-        'he':'il','she':'elle','we':'nous','they':'ils','and':'et','or':'ou',
-        'but':'mais','very':'très','not':'ne... pas','with':'avec','for':'pour',
-        'i love you':'je t\'aime','good morning':'bonjour','good night':'bonne nuit',
-        'how are you':'comment allez-vous?','thank you very much':'merci beaucoup',
+        'hello': 'bonjour', 'hi': 'salut', 'bye': 'au revoir', 'goodbye': 'au revoir',
+        'yes': 'oui', 'no': 'non', 'please': 's\'il vous plaît', 'thank you': 'merci',
+        'thanks': 'merci', 'sorry': 'désolé', 'excuse me': 'excusez-moi', 'help': 'aide',
+        'stop': 'arrêt', 'good': 'bon', 'bad': 'mauvais', 'morning': 'matin', 'evening': 'soir',
+        'night': 'nuit', 'today': 'aujourd\'hui', 'tomorrow': 'demain', 'water': 'eau',
+        'food': 'nourriture', 'eat': 'manger', 'drink': 'boire', 'sleep': 'dormir',
+        'love': 'amour', 'happy': 'heureux', 'sad': 'triste', 'angry': 'en colère',
+        'big': 'grand', 'small': 'petit', 'fast': 'rapide', 'slow': 'lent', 'hot': 'chaud',
+        'cold': 'froid', 'new': 'nouveau', 'old': 'vieux', 'beautiful': 'beau', 'ugly': 'laid',
+        'open': 'ouvrir', 'close': 'fermer', 'go': 'aller', 'come': 'venir', 'run': 'courir',
+        'walk': 'marcher', 'read': 'lire', 'write': 'écrire', 'speak': 'parler',
+        'listen': 'écouter', 'see': 'voir', 'hear': 'entendre', 'think': 'penser',
+        'know': 'savoir', 'want': 'vouloir', 'need': 'avoir besoin', 'have': 'avoir',
+        'give': 'donner', 'take': 'prendre', 'make': 'faire', 'buy': 'acheter',
+        'work': 'travailler', 'play': 'jouer', 'learn': 'apprendre', 'call': 'appeler',
+        'wait': 'attendre', 'father': 'père', 'mother': 'mère', 'brother': 'frère',
+        'sister': 'sœur', 'friend': 'ami', 'family': 'famille', 'man': 'homme',
+        'woman': 'femme', 'child': 'enfant', 'doctor': 'médecin', 'police': 'police',
+        'house': 'maison', 'school': 'école', 'car': 'voiture', 'phone': 'téléphone',
+        'money': 'argent', 'red': 'rouge', 'blue': 'bleu', 'green': 'vert', 'black': 'noir',
+        'white': 'blanc', 'yellow': 'jaune', 'one': 'un', 'two': 'deux', 'three': 'trois',
+        'four': 'quatre', 'five': 'cinq', 'where': 'où', 'when': 'quand', 'what': 'quoi',
+        'who': 'qui', 'why': 'pourquoi', 'how': 'comment', 'i': 'je', 'you': 'vous',
+        'he': 'il', 'she': 'elle', 'we': 'nous', 'they': 'ils', 'and': 'et', 'or': 'ou',
+        'but': 'mais', 'very': 'très', 'not': 'ne... pas', 'with': 'avec', 'for': 'pour',
+        'i love you': 'je t\'aime', 'good morning': 'bonjour', 'good night': 'bonne nuit',
+        'how are you': 'comment allez-vous?', 'thank you very much': 'merci beaucoup',
     },
     de: { // English → German
-        'hello':'hallo','hi':'hallo','bye':'tschüss','goodbye':'auf wiedersehen',
-        'yes':'ja','no':'nein','please':'bitte','thank you':'danke',
-        'thanks':'danke','sorry':'entschuldigung','excuse me':'entschuldigung',
-        'help':'hilfe','stop':'halt','good':'gut','bad':'schlecht',
-        'morning':'morgen','evening':'abend','night':'nacht','today':'heute',
-        'tomorrow':'morgen','water':'wasser','food':'essen','eat':'essen',
-        'drink':'trinken','sleep':'schlafen','love':'liebe','happy':'glücklich',
-        'sad':'traurig','angry':'wütend','big':'groß','small':'klein',
-        'fast':'schnell','slow':'langsam','hot':'heiß','cold':'kalt',
-        'new':'neu','old':'alt','beautiful':'schön','open':'öffnen',
-        'close':'schließen','go':'gehen','come':'kommen','run':'rennen',
-        'walk':'spazieren','read':'lesen','write':'schreiben','speak':'sprechen',
-        'listen':'hören','see':'sehen','hear':'hören','think':'denken',
-        'know':'wissen','want':'wollen','need':'brauchen','have':'haben',
-        'give':'geben','take':'nehmen','make':'machen','buy':'kaufen',
-        'work':'arbeiten','play':'spielen','learn':'lernen','call':'anrufen',
-        'father':'vater','mother':'mutter','brother':'bruder','sister':'schwester',
-        'friend':'freund','family':'familie','man':'mann','woman':'frau',
-        'child':'kind','doctor':'arzt','police':'polizei','house':'haus',
-        'school':'schule','car':'auto','phone':'telefon','money':'geld',
-        'red':'rot','blue':'blau','green':'grün','black':'schwarz','white':'weiß',
-        'yellow':'gelb','one':'ein','two':'zwei','three':'drei','four':'vier',
-        'five':'fünf','where':'wo','when':'wann','what':'was','who':'wer',
-        'why':'warum','how':'wie','i':'ich','you':'sie','he':'er','she':'sie',
-        'we':'wir','they':'sie','and':'und','or':'oder','but':'aber','very':'sehr',
-        'i love you':'ich liebe dich','good morning':'guten morgen',
-        'good night':'gute nacht','how are you':'wie geht es ihnen?',
+        'hello': 'hallo', 'hi': 'hallo', 'bye': 'tschüss', 'goodbye': 'auf wiedersehen',
+        'yes': 'ja', 'no': 'nein', 'please': 'bitte', 'thank you': 'danke',
+        'thanks': 'danke', 'sorry': 'entschuldigung', 'excuse me': 'entschuldigung',
+        'help': 'hilfe', 'stop': 'halt', 'good': 'gut', 'bad': 'schlecht',
+        'morning': 'morgen', 'evening': 'abend', 'night': 'nacht', 'today': 'heute',
+        'tomorrow': 'morgen', 'water': 'wasser', 'food': 'essen', 'eat': 'essen',
+        'drink': 'trinken', 'sleep': 'schlafen', 'love': 'liebe', 'happy': 'glücklich',
+        'sad': 'traurig', 'angry': 'wütend', 'big': 'groß', 'small': 'klein',
+        'fast': 'schnell', 'slow': 'langsam', 'hot': 'heiß', 'cold': 'kalt',
+        'new': 'neu', 'old': 'alt', 'beautiful': 'schön', 'open': 'öffnen',
+        'close': 'schließen', 'go': 'gehen', 'come': 'kommen', 'run': 'rennen',
+        'walk': 'spazieren', 'read': 'lesen', 'write': 'schreiben', 'speak': 'sprechen',
+        'listen': 'hören', 'see': 'sehen', 'hear': 'hören', 'think': 'denken',
+        'know': 'wissen', 'want': 'wollen', 'need': 'brauchen', 'have': 'haben',
+        'give': 'geben', 'take': 'nehmen', 'make': 'machen', 'buy': 'kaufen',
+        'work': 'arbeiten', 'play': 'spielen', 'learn': 'lernen', 'call': 'anrufen',
+        'father': 'vater', 'mother': 'mutter', 'brother': 'bruder', 'sister': 'schwester',
+        'friend': 'freund', 'family': 'familie', 'man': 'mann', 'woman': 'frau',
+        'child': 'kind', 'doctor': 'arzt', 'police': 'polizei', 'house': 'haus',
+        'school': 'schule', 'car': 'auto', 'phone': 'telefon', 'money': 'geld',
+        'red': 'rot', 'blue': 'blau', 'green': 'grün', 'black': 'schwarz', 'white': 'weiß',
+        'yellow': 'gelb', 'one': 'ein', 'two': 'zwei', 'three': 'drei', 'four': 'vier',
+        'five': 'fünf', 'where': 'wo', 'when': 'wann', 'what': 'was', 'who': 'wer',
+        'why': 'warum', 'how': 'wie', 'i': 'ich', 'you': 'sie', 'he': 'er', 'she': 'sie',
+        'we': 'wir', 'they': 'sie', 'and': 'und', 'or': 'oder', 'but': 'aber', 'very': 'sehr',
+        'i love you': 'ich liebe dich', 'good morning': 'guten morgen',
+        'good night': 'gute nacht', 'how are you': 'wie geht es ihnen?',
     },
     it: { // English → Italian
-        'hello':'ciao','hi':'ciao','bye':'arrivederci','goodbye':'arrivederci',
-        'yes':'sì','no':'no','please':'per favore','thank you':'grazie',
-        'thanks':'grazie','sorry':'mi dispiace','excuse me':'scusi','help':'aiuto',
-        'stop':'fermati','good':'buono','bad':'cattivo','morning':'mattina',
-        'evening':'sera','night':'notte','today':'oggi','tomorrow':'domani',
-        'water':'acqua','food':'cibo','eat':'mangiare','drink':'bere',
-        'sleep':'dormire','love':'amore','happy':'felice','sad':'triste',
-        'angry':'arrabbiato','big':'grande','small':'piccolo','fast':'veloce',
-        'slow':'lento','hot':'caldo','cold':'freddo','new':'nuovo','old':'vecchio',
-        'beautiful':'bello','open':'aprire','close':'chiudere','go':'andare',
-        'come':'venire','read':'leggere','write':'scrivere','speak':'parlare',
-        'listen':'ascoltare','see':'vedere','hear':'sentire','think':'pensare',
-        'know':'sapere','want':'volere','need':'avere bisogno','have':'avere',
-        'give':'dare','take':'prendere','make':'fare','buy':'comprare',
-        'work':'lavorare','play':'giocare','learn':'imparare',
-        'father':'padre','mother':'madre','brother':'fratello','sister':'sorella',
-        'friend':'amico','family':'famiglia','man':'uomo','woman':'donna',
-        'child':'bambino','doctor':'medico','police':'polizia',
-        'house':'casa','school':'scuola','car':'macchina','phone':'telefono',
-        'money':'soldi','red':'rosso','blue':'blu','green':'verde',
-        'black':'nero','white':'bianco','yellow':'giallo',
-        'i love you':'ti amo','good morning':'buongiorno','good night':'buonanotte',
+        'hello': 'ciao', 'hi': 'ciao', 'bye': 'arrivederci', 'goodbye': 'arrivederci',
+        'yes': 'sì', 'no': 'no', 'please': 'per favore', 'thank you': 'grazie',
+        'thanks': 'grazie', 'sorry': 'mi dispiace', 'excuse me': 'scusi', 'help': 'aiuto',
+        'stop': 'fermati', 'good': 'buono', 'bad': 'cattivo', 'morning': 'mattina',
+        'evening': 'sera', 'night': 'notte', 'today': 'oggi', 'tomorrow': 'domani',
+        'water': 'acqua', 'food': 'cibo', 'eat': 'mangiare', 'drink': 'bere',
+        'sleep': 'dormire', 'love': 'amore', 'happy': 'felice', 'sad': 'triste',
+        'angry': 'arrabbiato', 'big': 'grande', 'small': 'piccolo', 'fast': 'veloce',
+        'slow': 'lento', 'hot': 'caldo', 'cold': 'freddo', 'new': 'nuovo', 'old': 'vecchio',
+        'beautiful': 'bello', 'open': 'aprire', 'close': 'chiudere', 'go': 'andare',
+        'come': 'venire', 'read': 'leggere', 'write': 'scrivere', 'speak': 'parlare',
+        'listen': 'ascoltare', 'see': 'vedere', 'hear': 'sentire', 'think': 'pensare',
+        'know': 'sapere', 'want': 'volere', 'need': 'avere bisogno', 'have': 'avere',
+        'give': 'dare', 'take': 'prendere', 'make': 'fare', 'buy': 'comprare',
+        'work': 'lavorare', 'play': 'giocare', 'learn': 'imparare',
+        'father': 'padre', 'mother': 'madre', 'brother': 'fratello', 'sister': 'sorella',
+        'friend': 'amico', 'family': 'famiglia', 'man': 'uomo', 'woman': 'donna',
+        'child': 'bambino', 'doctor': 'medico', 'police': 'polizia',
+        'house': 'casa', 'school': 'scuola', 'car': 'macchina', 'phone': 'telefono',
+        'money': 'soldi', 'red': 'rosso', 'blue': 'blu', 'green': 'verde',
+        'black': 'nero', 'white': 'bianco', 'yellow': 'giallo',
+        'i love you': 'ti amo', 'good morning': 'buongiorno', 'good night': 'buonanotte',
     },
     pt: { // English → Portuguese
-        'hello':'olá','hi':'oi','bye':'tchau','goodbye':'adeus',
-        'yes':'sim','no':'não','please':'por favor','thank you':'obrigado',
-        'thanks':'obrigado','sorry':'desculpe','excuse me':'com licença',
-        'help':'ajuda','stop':'parar','good':'bom','bad':'mau',
-        'morning':'manhã','evening':'tarde','night':'noite','today':'hoje',
-        'tomorrow':'amanhã','water':'água','food':'comida','eat':'comer',
-        'drink':'beber','sleep':'dormir','love':'amor','happy':'feliz',
-        'sad':'triste','angry':'com raiva','big':'grande','small':'pequeno',
-        'fast':'rápido','slow':'lento','hot':'quente','cold':'frio',
-        'new':'novo','old':'velho','beautiful':'bonito','open':'abrir',
-        'close':'fechar','go':'ir','come':'vir','read':'ler','write':'escrever',
-        'speak':'falar','listen':'ouvir','see':'ver','hear':'ouvir',
-        'think':'pensar','know':'saber','want':'querer','need':'precisar',
-        'have':'ter','give':'dar','take':'pegar','make':'fazer','buy':'comprar',
-        'father':'pai','mother':'mãe','brother':'irmão','sister':'irmã',
-        'friend':'amigo','man':'homem','woman':'mulher','child':'criança',
-        'doctor':'médico','police':'polícia','house':'casa','school':'escola',
-        'car':'carro','phone':'telefone','money':'dinheiro',
-        'red':'vermelho','blue':'azul','green':'verde','black':'preto','white':'branco',
-        'i love you':'eu te amo','good morning':'bom dia','good night':'boa noite',
+        'hello': 'olá', 'hi': 'oi', 'bye': 'tchau', 'goodbye': 'adeus',
+        'yes': 'sim', 'no': 'não', 'please': 'por favor', 'thank you': 'obrigado',
+        'thanks': 'obrigado', 'sorry': 'desculpe', 'excuse me': 'com licença',
+        'help': 'ajuda', 'stop': 'parar', 'good': 'bom', 'bad': 'mau',
+        'morning': 'manhã', 'evening': 'tarde', 'night': 'noite', 'today': 'hoje',
+        'tomorrow': 'amanhã', 'water': 'água', 'food': 'comida', 'eat': 'comer',
+        'drink': 'beber', 'sleep': 'dormir', 'love': 'amor', 'happy': 'feliz',
+        'sad': 'triste', 'angry': 'com raiva', 'big': 'grande', 'small': 'pequeno',
+        'fast': 'rápido', 'slow': 'lento', 'hot': 'quente', 'cold': 'frio',
+        'new': 'novo', 'old': 'velho', 'beautiful': 'bonito', 'open': 'abrir',
+        'close': 'fechar', 'go': 'ir', 'come': 'vir', 'read': 'ler', 'write': 'escrever',
+        'speak': 'falar', 'listen': 'ouvir', 'see': 'ver', 'hear': 'ouvir',
+        'think': 'pensar', 'know': 'saber', 'want': 'querer', 'need': 'precisar',
+        'have': 'ter', 'give': 'dar', 'take': 'pegar', 'make': 'fazer', 'buy': 'comprar',
+        'father': 'pai', 'mother': 'mãe', 'brother': 'irmão', 'sister': 'irmã',
+        'friend': 'amigo', 'man': 'homem', 'woman': 'mulher', 'child': 'criança',
+        'doctor': 'médico', 'police': 'polícia', 'house': 'casa', 'school': 'escola',
+        'car': 'carro', 'phone': 'telefone', 'money': 'dinheiro',
+        'red': 'vermelho', 'blue': 'azul', 'green': 'verde', 'black': 'preto', 'white': 'branco',
+        'i love you': 'eu te amo', 'good morning': 'bom dia', 'good night': 'boa noite',
     },
     hi: { // English → Hindi
-        'hello':'नमस्ते','hi':'हाय','bye':'अलविदा','goodbye':'अलविदा',
-        'yes':'हाँ','no':'नहीं','please':'कृपया','thank you':'धन्यवाद',
-        'thanks':'शुक्रिया','sorry':'माफ करें','excuse me':'क्षमा करें',
-        'help':'मदद','stop':'रुको','good':'अच्छा','bad':'बुरा',
-        'morning':'सुबह','evening':'शाम','night':'रात','today':'आज',
-        'tomorrow':'कल','water':'पानी','food':'खाना','eat':'खाना खाओ',
-        'drink':'पीना','sleep':'सोना','love':'प्यार','happy':'खुश',
-        'sad':'दुखी','angry':'गुस्सा','big':'बड़ा','small':'छोटा',
-        'fast':'जल्दी','slow':'धीरे','hot':'गर्म','cold':'ठंडा',
-        'new':'नया','old':'पुराना','beautiful':'सुंदर',
-        'go':'जाओ','come':'आओ','read':'पढ़ना','write':'लिखना',
-        'speak':'बोलना','listen':'सुनना','see':'देखना','hear':'सुनना',
-        'think':'सोचना','know':'जानना','want':'चाहना','need':'ज़रूरत होना',
-        'have':'होना','give':'देना','take':'लेना','make':'बनाना','buy':'खरीदना',
-        'father':'पिता','mother':'माँ','brother':'भाई','sister':'बहन',
-        'friend':'दोस्त','family':'परिवार','man':'आदमी','woman':'औरत',
-        'child':'बच्चा','doctor':'डॉक्टर','police':'पुलिस',
-        'house':'घर','school':'स्कूल','car':'कार','phone':'फोन','money':'पैसा',
-        'red':'लाल','blue':'नीला','green':'हरा','black':'काला','white':'सफेद',
-        'i love you':'मैं तुमसे प्यार करता हूँ','good morning':'सुप्रभात','good night':'शुभ रात्रि',
-        'how are you':'आप कैसे हैं?','thank you very much':'बहुत बहुत धन्यवाद',
+        'hello': 'नमस्ते', 'hi': 'हाय', 'bye': 'अलविदा', 'goodbye': 'अलविदा',
+        'yes': 'हाँ', 'no': 'नहीं', 'please': 'कृपया', 'thank you': 'धन्यवाद',
+        'thanks': 'शुक्रिया', 'sorry': 'माफ करें', 'excuse me': 'क्षमा करें',
+        'help': 'मदद', 'stop': 'रुको', 'good': 'अच्छा', 'bad': 'बुरा',
+        'morning': 'सुबह', 'evening': 'शाम', 'night': 'रात', 'today': 'आज',
+        'tomorrow': 'कल', 'water': 'पानी', 'food': 'खाना', 'eat': 'खाना खाओ',
+        'drink': 'पीना', 'sleep': 'सोना', 'love': 'प्यार', 'happy': 'खुश',
+        'sad': 'दुखी', 'angry': 'गुस्सा', 'big': 'बड़ा', 'small': 'छोटा',
+        'fast': 'जल्दी', 'slow': 'धीरे', 'hot': 'गर्म', 'cold': 'ठंडा',
+        'new': 'नया', 'old': 'पुराना', 'beautiful': 'सुंदर',
+        'go': 'जाओ', 'come': 'आओ', 'read': 'पढ़ना', 'write': 'लिखना',
+        'speak': 'बोलना', 'listen': 'सुनना', 'see': 'देखना', 'hear': 'सुनना',
+        'think': 'सोचना', 'know': 'जानना', 'want': 'चाहना', 'need': 'ज़रूरत होना',
+        'have': 'होना', 'give': 'देना', 'take': 'लेना', 'make': 'बनाना', 'buy': 'खरीदना',
+        'father': 'पिता', 'mother': 'माँ', 'brother': 'भाई', 'sister': 'बहन',
+        'friend': 'दोस्त', 'family': 'परिवार', 'man': 'आदमी', 'woman': 'औरत',
+        'child': 'बच्चा', 'doctor': 'डॉक्टर', 'police': 'पुलिस',
+        'house': 'घर', 'school': 'स्कूल', 'car': 'कार', 'phone': 'फोन', 'money': 'पैसा',
+        'red': 'लाल', 'blue': 'नीला', 'green': 'हरा', 'black': 'काला', 'white': 'सफेद',
+        'i love you': 'मैं तुमसे प्यार करता हूँ', 'good morning': 'सुप्रभात', 'good night': 'शुभ रात्रि',
+        'how are you': 'आप कैसे हैं?', 'thank you very much': 'बहुत बहुत धन्यवाद',
     },
     ar: { // English → Arabic
-        'hello':'مرحبا','hi':'أهلاً','bye':'وداعاً','goodbye':'مع السلامة',
-        'yes':'نعم','no':'لا','please':'من فضلك','thank you':'شكراً',
-        'thanks':'شكراً','sorry':'آسف','excuse me':'عفواً','help':'مساعدة',
-        'stop':'توقف','good':'جيد','bad':'سيء','morning':'صباح','evening':'مساء',
-        'night':'ليل','today':'اليوم','tomorrow':'غداً','water':'ماء',
-        'food':'طعام','eat':'يأكل','drink':'يشرب','sleep':'ينام',
-        'love':'حب','happy':'سعيد','sad':'حزين','angry':'غاضب',
-        'big':'كبير','small':'صغير','fast':'سريع','slow':'بطيء',
-        'hot':'حار','cold':'بارد','new':'جديد','old':'قديم','beautiful':'جميل',
-        'go':'يذهب','come':'يأتي','read':'يقرأ','write':'يكتب',
-        'speak':'يتحدث','listen':'يستمع','see':'يرى','hear':'يسمع',
-        'think':'يفكر','know':'يعرف','want':'يريد','need':'يحتاج',
-        'have':'لديه','give':'يعطي','take':'يأخذ','make':'يصنع','buy':'يشتري',
-        'father':'أب','mother':'أم','brother':'أخ','sister':'أخت',
-        'friend':'صديق','family':'عائلة','man':'رجل','woman':'امرأة',
-        'child':'طفل','doctor':'طبيب','police':'شرطة',
-        'house':'منزل','school':'مدرسة','car':'سيارة','phone':'هاتف','money':'مال',
-        'red':'أحمر','blue':'أزرق','green':'أخضر','black':'أسود','white':'أبيض',
-        'i love you':'أحبك','good morning':'صباح الخير','good night':'تصبح على خير',
+        'hello': 'مرحبا', 'hi': 'أهلاً', 'bye': 'وداعاً', 'goodbye': 'مع السلامة',
+        'yes': 'نعم', 'no': 'لا', 'please': 'من فضلك', 'thank you': 'شكراً',
+        'thanks': 'شكراً', 'sorry': 'آسف', 'excuse me': 'عفواً', 'help': 'مساعدة',
+        'stop': 'توقف', 'good': 'جيد', 'bad': 'سيء', 'morning': 'صباح', 'evening': 'مساء',
+        'night': 'ليل', 'today': 'اليوم', 'tomorrow': 'غداً', 'water': 'ماء',
+        'food': 'طعام', 'eat': 'يأكل', 'drink': 'يشرب', 'sleep': 'ينام',
+        'love': 'حب', 'happy': 'سعيد', 'sad': 'حزين', 'angry': 'غاضب',
+        'big': 'كبير', 'small': 'صغير', 'fast': 'سريع', 'slow': 'بطيء',
+        'hot': 'حار', 'cold': 'بارد', 'new': 'جديد', 'old': 'قديم', 'beautiful': 'جميل',
+        'go': 'يذهب', 'come': 'يأتي', 'read': 'يقرأ', 'write': 'يكتب',
+        'speak': 'يتحدث', 'listen': 'يستمع', 'see': 'يرى', 'hear': 'يسمع',
+        'think': 'يفكر', 'know': 'يعرف', 'want': 'يريد', 'need': 'يحتاج',
+        'have': 'لديه', 'give': 'يعطي', 'take': 'يأخذ', 'make': 'يصنع', 'buy': 'يشتري',
+        'father': 'أب', 'mother': 'أم', 'brother': 'أخ', 'sister': 'أخت',
+        'friend': 'صديق', 'family': 'عائلة', 'man': 'رجل', 'woman': 'امرأة',
+        'child': 'طفل', 'doctor': 'طبيب', 'police': 'شرطة',
+        'house': 'منزل', 'school': 'مدرسة', 'car': 'سيارة', 'phone': 'هاتف', 'money': 'مال',
+        'red': 'أحمر', 'blue': 'أزرق', 'green': 'أخضر', 'black': 'أسود', 'white': 'أبيض',
+        'i love you': 'أحبك', 'good morning': 'صباح الخير', 'good night': 'تصبح على خير',
     },
     zh: { // English → Chinese (Mandarin)
-        'hello':'你好','hi':'嗨','bye':'再见','goodbye':'再见','yes':'是','no':'不',
-        'please':'请','thank you':'谢谢','thanks':'谢谢','sorry':'对不起',
-        'excuse me':'打扰一下','help':'帮助','stop':'停','good':'好','bad':'坏',
-        'morning':'早上','evening':'晚上','night':'夜晚','today':'今天',
-        'tomorrow':'明天','water':'水','food':'食物','eat':'吃','drink':'喝',
-        'sleep':'睡觉','love':'爱','happy':'快乐','sad':'悲伤','angry':'愤怒',
-        'big':'大','small':'小','fast':'快','slow':'慢','hot':'热','cold':'冷',
-        'new':'新','old':'旧','beautiful':'美丽','go':'去','come':'来',
-        'read':'读','write':'写','speak':'说','listen':'听','see':'看','hear':'听',
-        'think':'想','know':'知道','want':'想要','need':'需要','have':'有',
-        'give':'给','take':'拿','make':'做','buy':'买',
-        'father':'父亲','mother':'母亲','brother':'兄弟','sister':'姐妹',
-        'friend':'朋友','family':'家庭','man':'男人','woman':'女人',
-        'child':'孩子','doctor':'医生','police':'警察',
-        'house':'房子','school':'学校','car':'汽车','phone':'手机','money':'钱',
-        'red':'红色','blue':'蓝色','green':'绿色','black':'黑色','white':'白色',
-        'one':'一','two':'二','three':'三','four':'四','five':'五',
-        'i love you':'我爱你','good morning':'早上好','good night':'晚安',
-        'how are you':'你好吗?','thank you very much':'非常感谢',
+        'hello': '你好', 'hi': '嗨', 'bye': '再见', 'goodbye': '再见', 'yes': '是', 'no': '不',
+        'please': '请', 'thank you': '谢谢', 'thanks': '谢谢', 'sorry': '对不起',
+        'excuse me': '打扰一下', 'help': '帮助', 'stop': '停', 'good': '好', 'bad': '坏',
+        'morning': '早上', 'evening': '晚上', 'night': '夜晚', 'today': '今天',
+        'tomorrow': '明天', 'water': '水', 'food': '食物', 'eat': '吃', 'drink': '喝',
+        'sleep': '睡觉', 'love': '爱', 'happy': '快乐', 'sad': '悲伤', 'angry': '愤怒',
+        'big': '大', 'small': '小', 'fast': '快', 'slow': '慢', 'hot': '热', 'cold': '冷',
+        'new': '新', 'old': '旧', 'beautiful': '美丽', 'go': '去', 'come': '来',
+        'read': '读', 'write': '写', 'speak': '说', 'listen': '听', 'see': '看', 'hear': '听',
+        'think': '想', 'know': '知道', 'want': '想要', 'need': '需要', 'have': '有',
+        'give': '给', 'take': '拿', 'make': '做', 'buy': '买',
+        'father': '父亲', 'mother': '母亲', 'brother': '兄弟', 'sister': '姐妹',
+        'friend': '朋友', 'family': '家庭', 'man': '男人', 'woman': '女人',
+        'child': '孩子', 'doctor': '医生', 'police': '警察',
+        'house': '房子', 'school': '学校', 'car': '汽车', 'phone': '手机', 'money': '钱',
+        'red': '红色', 'blue': '蓝色', 'green': '绿色', 'black': '黑色', 'white': '白色',
+        'one': '一', 'two': '二', 'three': '三', 'four': '四', 'five': '五',
+        'i love you': '我爱你', 'good morning': '早上好', 'good night': '晚安',
+        'how are you': '你好吗?', 'thank you very much': '非常感谢',
     },
     ja: { // English → Japanese
-        'hello':'こんにちは','hi':'やあ','bye':'さようなら','goodbye':'さようなら',
-        'yes':'はい','no':'いいえ','please':'お願いします','thank you':'ありがとう',
-        'thanks':'ありがとう','sorry':'すみません','excuse me':'すみません',
-        'help':'助けて','stop':'止まれ','good':'良い','bad':'悪い',
-        'morning':'朝','evening':'夕方','night':'夜','today':'今日','tomorrow':'明日',
-        'water':'水','food':'食べ物','eat':'食べる','drink':'飲む','sleep':'寝る',
-        'love':'愛','happy':'幸せ','sad':'悲しい','angry':'怒っている',
-        'big':'大きい','small':'小さい','fast':'速い','slow':'遅い',
-        'hot':'暑い','cold':'寒い','new':'新しい','old':'古い','beautiful':'美しい',
-        'go':'行く','come':'来る','read':'読む','write':'書く','speak':'話す',
-        'listen':'聞く','see':'見る','hear':'聞く','think':'考える',
-        'know':'知る','want':'欲しい','need':'必要','have':'ある','give':'あげる',
-        'father':'父','mother':'母','brother':'兄弟','sister':'姉妹',
-        'friend':'友達','family':'家族','man':'男','woman':'女','child':'子供',
-        'doctor':'医者','police':'警察','house':'家','school':'学校',
-        'car':'車','phone':'電話','money':'お金',
-        'red':'赤','blue':'青','green':'緑','black':'黒','white':'白',
-        'i love you':'愛してる','good morning':'おはようございます','good night':'おやすみなさい',
+        'hello': 'こんにちは', 'hi': 'やあ', 'bye': 'さようなら', 'goodbye': 'さようなら',
+        'yes': 'はい', 'no': 'いいえ', 'please': 'お願いします', 'thank you': 'ありがとう',
+        'thanks': 'ありがとう', 'sorry': 'すみません', 'excuse me': 'すみません',
+        'help': '助けて', 'stop': '止まれ', 'good': '良い', 'bad': '悪い',
+        'morning': '朝', 'evening': '夕方', 'night': '夜', 'today': '今日', 'tomorrow': '明日',
+        'water': '水', 'food': '食べ物', 'eat': '食べる', 'drink': '飲む', 'sleep': '寝る',
+        'love': '愛', 'happy': '幸せ', 'sad': '悲しい', 'angry': '怒っている',
+        'big': '大きい', 'small': '小さい', 'fast': '速い', 'slow': '遅い',
+        'hot': '暑い', 'cold': '寒い', 'new': '新しい', 'old': '古い', 'beautiful': '美しい',
+        'go': '行く', 'come': '来る', 'read': '読む', 'write': '書く', 'speak': '話す',
+        'listen': '聞く', 'see': '見る', 'hear': '聞く', 'think': '考える',
+        'know': '知る', 'want': '欲しい', 'need': '必要', 'have': 'ある', 'give': 'あげる',
+        'father': '父', 'mother': '母', 'brother': '兄弟', 'sister': '姉妹',
+        'friend': '友達', 'family': '家族', 'man': '男', 'woman': '女', 'child': '子供',
+        'doctor': '医者', 'police': '警察', 'house': '家', 'school': '学校',
+        'car': '車', 'phone': '電話', 'money': 'お金',
+        'red': '赤', 'blue': '青', 'green': '緑', 'black': '黒', 'white': '白',
+        'i love you': '愛してる', 'good morning': 'おはようございます', 'good night': 'おやすみなさい',
     },
     ko: { // English → Korean
-        'hello':'안녕하세요','hi':'안녕','bye':'안녕히 가세요','goodbye':'안녕히 가세요',
-        'yes':'네','no':'아니요','please':'여쭤볼게요','thank you':'감사합니다',
-        'thanks':'감사해요','sorry':'미안합니다','excuse me':'실례합니다',
-        'help':'도와주세요','stop':'멈춰','good':'좋은','bad':'나쁜',
-        'morning':'아침','evening':'저녁','night':'밤','today':'오늘','tomorrow':'내일',
-        'water':'물','food':'음식','eat':'먹다','drink':'마시다','sleep':'자다',
-        'love':'사랑','happy':'행복한','sad':'슬픈','angry':'화난',
-        'big':'큰','small':'작은','fast':'빠른','slow':'느린',
-        'hot':'뜨거운','cold':'추운','new':'새로운','old':'오래된','beautiful':'아름다운',
-        'go':'가다','come':'오다','read':'읽다','write':'쓰다','speak':'말하다',
-        'listen':'듣다','see':'보다','hear':'듣다','think':'생각하다',
-        'know':'알다','want':'원하다','need':'필요하다','have':'있다','give':'주다',
-        'father':'아버지','mother':'어머니','brother':'형제','sister':'자매',
-        'friend':'친구','family':'가족','man':'남자','woman':'여자','child':'아이',
-        'doctor':'의사','police':'경찰','house':'집','school':'학교',
-        'car':'자동차','phone':'전화기','money':'돈',
-        'i love you':'사랑해요','good morning':'좋은 아침이에요','good night':'잘 자요',
+        'hello': '안녕하세요', 'hi': '안녕', 'bye': '안녕히 가세요', 'goodbye': '안녕히 가세요',
+        'yes': '네', 'no': '아니요', 'please': '여쭤볼게요', 'thank you': '감사합니다',
+        'thanks': '감사해요', 'sorry': '미안합니다', 'excuse me': '실례합니다',
+        'help': '도와주세요', 'stop': '멈춰', 'good': '좋은', 'bad': '나쁜',
+        'morning': '아침', 'evening': '저녁', 'night': '밤', 'today': '오늘', 'tomorrow': '내일',
+        'water': '물', 'food': '음식', 'eat': '먹다', 'drink': '마시다', 'sleep': '자다',
+        'love': '사랑', 'happy': '행복한', 'sad': '슬픈', 'angry': '화난',
+        'big': '큰', 'small': '작은', 'fast': '빠른', 'slow': '느린',
+        'hot': '뜨거운', 'cold': '추운', 'new': '새로운', 'old': '오래된', 'beautiful': '아름다운',
+        'go': '가다', 'come': '오다', 'read': '읽다', 'write': '쓰다', 'speak': '말하다',
+        'listen': '듣다', 'see': '보다', 'hear': '듣다', 'think': '생각하다',
+        'know': '알다', 'want': '원하다', 'need': '필요하다', 'have': '있다', 'give': '주다',
+        'father': '아버지', 'mother': '어머니', 'brother': '형제', 'sister': '자매',
+        'friend': '친구', 'family': '가족', 'man': '남자', 'woman': '여자', 'child': '아이',
+        'doctor': '의사', 'police': '경찰', 'house': '집', 'school': '학교',
+        'car': '자동차', 'phone': '전화기', 'money': '돈',
+        'i love you': '사랑해요', 'good morning': '좋은 아침이에요', 'good night': '잘 자요',
     },
     ru: { // English → Russian
-        'hello':'привет','hi':'привет','bye':'пока','goodbye':'до свидания',
-        'yes':'да','no':'нет','please':'пожалуйста','thank you':'спасибо',
-        'thanks':'спасибо','sorry':'извините','excuse me':'простите',
-        'help':'помогите','stop':'стоп','good':'хороший','bad':'плохой',
-        'morning':'утро','evening':'вечер','night':'ночь','today':'сегодня',
-        'tomorrow':'завтра','water':'вода','food':'еда','eat':'есть',
-        'drink':'пить','sleep':'спать','love':'любовь','happy':'счастливый',
-        'sad':'грустный','angry':'сердитый','big':'большой','small':'маленький',
-        'fast':'быстрый','slow':'медленный','hot':'горячий','cold':'холодный',
-        'new':'новый','old':'старый','beautiful':'красивый',
-        'go':'идти','come':'приходить','read':'читать','write':'писать',
-        'speak':'говорить','listen':'слушать','see':'видеть','hear':'слышать',
-        'think':'думать','know':'знать','want':'хотеть','need':'нуждаться',
-        'have':'иметь','give':'давать','take':'брать','make':'делать','buy':'покупать',
-        'father':'отец','mother':'мать','brother':'брат','sister':'сестра',
-        'friend':'друг','family':'семья','man':'мужчина','woman':'женщина',
-        'child':'ребёнок','doctor':'врач','police':'полиция',
-        'house':'дом','school':'школа','car':'машина','phone':'телефон','money':'деньги',
-        'red':'красный','blue':'синий','green':'зелёный','black':'чёрный','white':'белый',
-        'i love you':'я тебя люблю','good morning':'доброе утро','good night':'спокойной ночи',
+        'hello': 'привет', 'hi': 'привет', 'bye': 'пока', 'goodbye': 'до свидания',
+        'yes': 'да', 'no': 'нет', 'please': 'пожалуйста', 'thank you': 'спасибо',
+        'thanks': 'спасибо', 'sorry': 'извините', 'excuse me': 'простите',
+        'help': 'помогите', 'stop': 'стоп', 'good': 'хороший', 'bad': 'плохой',
+        'morning': 'утро', 'evening': 'вечер', 'night': 'ночь', 'today': 'сегодня',
+        'tomorrow': 'завтра', 'water': 'вода', 'food': 'еда', 'eat': 'есть',
+        'drink': 'пить', 'sleep': 'спать', 'love': 'любовь', 'happy': 'счастливый',
+        'sad': 'грустный', 'angry': 'сердитый', 'big': 'большой', 'small': 'маленький',
+        'fast': 'быстрый', 'slow': 'медленный', 'hot': 'горячий', 'cold': 'холодный',
+        'new': 'новый', 'old': 'старый', 'beautiful': 'красивый',
+        'go': 'идти', 'come': 'приходить', 'read': 'читать', 'write': 'писать',
+        'speak': 'говорить', 'listen': 'слушать', 'see': 'видеть', 'hear': 'слышать',
+        'think': 'думать', 'know': 'знать', 'want': 'хотеть', 'need': 'нуждаться',
+        'have': 'иметь', 'give': 'давать', 'take': 'брать', 'make': 'делать', 'buy': 'покупать',
+        'father': 'отец', 'mother': 'мать', 'brother': 'брат', 'sister': 'сестра',
+        'friend': 'друг', 'family': 'семья', 'man': 'мужчина', 'woman': 'женщина',
+        'child': 'ребёнок', 'doctor': 'врач', 'police': 'полиция',
+        'house': 'дом', 'school': 'школа', 'car': 'машина', 'phone': 'телефон', 'money': 'деньги',
+        'red': 'красный', 'blue': 'синий', 'green': 'зелёный', 'black': 'чёрный', 'white': 'белый',
+        'i love you': 'я тебя люблю', 'good morning': 'доброе утро', 'good night': 'спокойной ночи',
     },
 };
 
@@ -3010,12 +3040,14 @@ if (translateSpeakBtn) {
         const t = translateResultEl.textContent.trim();
         if (!t || t === 'Translation will appear here\u2026') { showToast('\u26a0\ufe0f Nothing to speak!'); return; }
         const toLang = translateToEl.value;
-        const langMap = { en: 'en-US', es: 'es-ES', fr: 'fr-FR', de: 'de-DE',
+        const langMap = {
+            en: 'en-US', es: 'es-ES', fr: 'fr-FR', de: 'de-DE',
             it: 'it-IT', pt: 'pt-BR', hi: 'hi-IN', ar: 'ar-SA',
-            zh: 'zh-CN', ja: 'ja-JP', ko: 'ko-KR', ru: 'ru-RU' };
+            zh: 'zh-CN', ja: 'ja-JP', ko: 'ko-KR', ru: 'ru-RU'
+        };
         const utter = new SpeechSynthesisUtterance(t);
         utter.lang = langMap[toLang] || 'en-US';
-        utter.rate  = ttsRateEl  ? parseFloat(ttsRateEl.value)  : 1;
+        utter.rate = ttsRateEl ? parseFloat(ttsRateEl.value) : 1;
         utter.pitch = ttsPitchEl ? parseFloat(ttsPitchEl.value) : 1;
         speechSynthesis.cancel();
         setTimeout(() => { speechSynthesis.speak(utter); showToast('\ud83d\udd0a Speaking translation\u2026'); }, 120);
@@ -3039,7 +3071,7 @@ buildTranslatePhrasesGrid();
    Serve the app via:  python3 -m http.server 8080
    then open: http://localhost:8080
 ════════════════════════════════════════════════ */
-const sttBtn    = document.getElementById('sttBtn');
+const sttBtn = document.getElementById('sttBtn');
 const sttStatus = document.getElementById('sttStatus');
 
 let sttRecognition = null;
@@ -3168,7 +3200,7 @@ function startSTT() {
 
 function stopSTT() {
     sttIsListening = false;
-    if (sttRecognition) { try { sttRecognition.stop(); } catch (_) {} }
+    if (sttRecognition) { try { sttRecognition.stop(); } catch (_) { } }
     if (sttBtn) {
         sttBtn.classList.remove('stt-active');
         sttBtn.innerHTML = '<span>🎤</span> Mic STT';
@@ -3201,7 +3233,7 @@ function sttRouteText(text) {
         case 'morse': {
             // Fill the Text→Morse encoder input and auto-encode
             const mInput = document.getElementById('morseTextInput');
-            const mBtn   = document.getElementById('morseEncodeBtn');
+            const mBtn = document.getElementById('morseEncodeBtn');
             if (mInput) {
                 mInput.value = (mInput.value ? mInput.value + ' ' : '') + text;
                 mInput.dispatchEvent(new Event('input'));
@@ -3215,7 +3247,7 @@ function sttRouteText(text) {
         case 'braille': {
             // Fill the Text→Braille encoder input and auto-convert
             const bInput = document.getElementById('brailleInput');
-            const bBtn   = document.getElementById('brailleConvertBtn');
+            const bBtn = document.getElementById('brailleConvertBtn');
             if (bInput) {
                 bInput.value = (bInput.value ? bInput.value + ' ' : '') + text;
                 bInput.dispatchEvent(new Event('input'));
@@ -3229,7 +3261,7 @@ function sttRouteText(text) {
         case 'translate': {
             // Fill the translation source box and auto-translate
             const tInput = document.getElementById('translateInput');
-            const tBtn   = document.getElementById('translateBtn');
+            const tBtn = document.getElementById('translateBtn');
             if (tInput) {
                 tInput.value = (tInput.value ? tInput.value + ' ' : '') + text;
                 tInput.dispatchEvent(new Event('input'));  // update char count
@@ -3256,11 +3288,11 @@ initSTT();
    Voice selection, rate, and pitch controls.
 ════════════════════════════════════════════════ */
 const ttsVoiceSelect = document.getElementById('ttsVoiceSelect');
-const ttsRateEl      = document.getElementById('ttsRate');
-const ttsRateValEl   = document.getElementById('ttsRateVal');
-const ttsPitchEl     = document.getElementById('ttsPitch');
-const ttsPitchValEl  = document.getElementById('ttsPitchVal');
-const ttsStopBtn     = document.getElementById('ttsStopBtn');
+const ttsRateEl = document.getElementById('ttsRate');
+const ttsRateValEl = document.getElementById('ttsRateVal');
+const ttsPitchEl = document.getElementById('ttsPitch');
+const ttsPitchValEl = document.getElementById('ttsPitchVal');
+const ttsStopBtn = document.getElementById('ttsStopBtn');
 
 let ttsVoices = [];
 
@@ -3331,7 +3363,7 @@ function doTTSSpeak(text) {
     }
 
     const utter = new SpeechSynthesisUtterance(text);
-    utter.rate  = ttsRateEl  ? parseFloat(ttsRateEl.value)  : 1;
+    utter.rate = ttsRateEl ? parseFloat(ttsRateEl.value) : 1;
     utter.pitch = ttsPitchEl ? parseFloat(ttsPitchEl.value) : 1;
 
     // Look up voice by name stored in dropdown (skip if voices empty)
@@ -3344,7 +3376,7 @@ function doTTSSpeak(text) {
         console.error('[TTS] error:', e.error);
         if (e.error === 'synthesis-failed' || e.error === 'synthesis-unavailable') {
             const isLinux = navigator.platform.toLowerCase().includes('linux') ||
-                            navigator.userAgent.toLowerCase().includes('linux');
+                navigator.userAgent.toLowerCase().includes('linux');
             if (isLinux) {
                 showToast('❌ TTS unavailable. Relaunch Chromium with: --enable-speech-dispatcher');
                 // Show persistent info banner
@@ -3375,13 +3407,13 @@ function doTTSSpeak(text) {
     };
 
     // Chrome freeze fix: resume() before cancel()/speak()
-    try { speechSynthesis.resume(); } catch(_) {}
+    try { speechSynthesis.resume(); } catch (_) { }
     speechSynthesis.cancel();
     setTimeout(() => {
         try {
             speechSynthesis.speak(utter);
             if (ttsVoices.length > 0) showToast('🔊 Speaking…');
-        } catch(e) {
+        } catch (e) {
             showToast('❌ TTS error: ' + e.message);
             console.error('[TTS] speak() threw:', e);
         }
