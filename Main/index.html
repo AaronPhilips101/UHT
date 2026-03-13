@@ -51,7 +51,19 @@
         <span>🌐</span> Translate
       </button>
     </div>
-    <div class="header-badge" id="headerBadge">ASL Alphabet Detector</div>
+    <div style="display: flex; gap: 1rem; align-items: center;">
+      <div class="hand-nav-toggle-wrap" style="display: flex; align-items: center; gap: 0.5rem; background: rgba(255, 255, 255, 0.04); padding: 0.3rem 0.8rem; border-radius: 100px; border: 1px solid var(--border);">
+        <span style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary);">✋ Hand Nav</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="handNavToggle" />
+          <span class="toggle-slider"></span>
+        </label>
+        <div style="width: 1px; height: 16px; background: var(--border); margin: 0 0.1rem;"></div>
+        <span style="font-size: 0.7rem; color: var(--text-muted);" title="Sensitivity">Sens:</span>
+        <input type="range" id="handNavSens" min="0.5" max="3" step="0.1" value="1.5" style="width: 50px; height: 3px;" />
+      </div>
+      <div class="header-badge" id="headerBadge">ASL Alphabet Detector</div>
+    </div>
   </header>
 
   <main class="main-container">
@@ -688,6 +700,8 @@
 
     </section>
   </main>
+
+  <div id="handCursor" class="hand-cursor"></div>
 
   <!-- Tesseract.js OCR -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.4/dist/tesseract.min.js"></script>

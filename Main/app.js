@@ -86,6 +86,21 @@ const wordSeqTimeoutValEl = document.getElementById('wordSeqTimeoutVal');
 const wordMirrorToggleEl = document.getElementById('wordMirrorToggle');
 const wordRefGrid = document.getElementById('wordRefGrid');
 
+// Hand Nav DOM refs & State
+const handNavToggleEl = document.getElementById('handNavToggle');
+const handNavSensEl = document.getElementById('handNavSens');
+const handCursorEl = document.getElementById('handCursor');
+let handNavEnabled = false;
+let cursorX = window.innerWidth / 2;
+let cursorY = window.innerHeight / 2;
+
+let activeNavGesture = 'none'; // 'none', 'pinch', 'scroll'
+let pinchStartX = 0;
+let pinchStartY = 0;
+let pinchTargetEl = null;
+let currentScrollTarget = null;
+let lastScrollY = 0;
+
 // Gesture Detection DOM refs
 const gesturePanel = document.getElementById('gesturePanel');
 const gestureEmojiEl = document.getElementById('gestureEmoji');
@@ -382,7 +397,14 @@ async function startCamera() {
         // Enable OCR scan-cam button immediately
         if (currentMode === 'ocr') {
             ocrScanCamBtn.disabled = false;
-            statusText.textContent = 'Camera active — OCR ready!';
+            if (handNavEnabled) {
+                statusText.textContent = 'Loading AI models (Hand Nav)…';
+                await ensureModels();
+                statusText.textContent = 'Camera active — OCR + Hand Nav ready!';
+                requestAnimationFrame(detectLoop);
+            } else {
+                statusText.textContent = 'Camera active — OCR ready!';
+            }
         } else {
             // Load TF models lazily for ASL / Morse
             statusText.textContent = 'Loading AI models…';
@@ -434,13 +456,21 @@ async function detectLoop() {
 
     ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
 
-    if (currentMode === 'asl') {
-        await runASLFrame();
-    } else if (currentMode === 'words') {
-        await runWordFrame();
-    } else if (currentMode === 'gestures') {
-        await runGestureFrame();
+    let handsFromNav = null;
+    if (handNavEnabled) {
+        try { handsFromNav = await handDetector.estimateHands(webcamEl, { flipHorizontal: false }); } catch (e) { handsFromNav = []; }
+        processHandCursor(handsFromNav);
     } else {
+        hideHandCursor();
+    }
+
+    if (currentMode === 'asl') {
+        await runASLFrame(handsFromNav);
+    } else if (currentMode === 'words') {
+        await runWordFrame(handsFromNav);
+    } else if (currentMode === 'gestures') {
+        await runGestureFrame(handsFromNav);
+    } else if (currentMode === 'morse') {
         await runMorseFrame();
     }
 
@@ -448,14 +478,147 @@ async function detectLoop() {
     animFrameId = requestAnimationFrame(detectLoop);
 }
 
+function processHandCursor(hands) {
+    if (!hands || hands.length === 0) {
+        hideHandCursor();
+        return;
+    }
+    handCursorEl.classList.add('active');
+    
+    const kps = hands[0].keypoints;
+    const thumb = kps[4];
+    const index = kps[8];
+    const wrist = kps[0];
+    
+    const sens = parseFloat(handNavSensEl.value) || 1.5;
+    
+    // Calculate raw target tracking using index finger
+    let targetX = window.innerWidth - (index.x / webcamEl.videoWidth) * window.innerWidth;
+    let targetY = (index.y / webcamEl.videoHeight) * window.innerHeight;
+    
+    // Apply sensitivity (centered)
+    const centerX = window.innerWidth / 2;
+    const centerY = window.innerHeight / 2;
+    targetX = centerX + (targetX - centerX) * sens;
+    targetY = centerY + (targetY - centerY) * sens;
+    
+    // Clamp
+    targetX = Math.max(0, Math.min(window.innerWidth, targetX));
+    targetY = Math.max(0, Math.min(window.innerHeight, targetY));
+
+    // Determine gestures
+    const distClick = Math.hypot(thumb.x - index.x, thumb.y - index.y);
+    const isPinching = distClick < 40;
+    
+    const isCurled = (tipIdx, mcpIdx) => {
+        return Math.hypot(kps[tipIdx].x - wrist.x, kps[tipIdx].y - wrist.y) < Math.hypot(kps[mcpIdx].x - wrist.x, kps[mcpIdx].y - wrist.y) * 1.25;
+    };
+    const isExtended = (tipIdx, mcpIdx) => {
+        return Math.hypot(kps[tipIdx].x - wrist.x, kps[tipIdx].y - wrist.y) > Math.hypot(kps[mcpIdx].x - wrist.x, kps[mcpIdx].y - wrist.y) * 1.2;
+    };
+    
+    // Two finger scroll (Index and Middle extended, Ring and Pinky curled)
+    const isScrollGesture = isExtended(8, 5) && isExtended(12, 9) && isCurled(16, 13) && isCurled(20, 17) && !isPinching;
+    
+    // Smooth the cursor position first for incredibly stable tracking
+    cursorX += (targetX - cursorX) * 0.4;
+    cursorY += (targetY - cursorY) * 0.4;
+    
+    // State machine
+    if (isPinching) {
+        if (activeNavGesture !== 'pinch') {
+            activeNavGesture = 'pinch';
+            pinchStartX = cursorX;
+            pinchStartY = cursorY;
+            handCursorEl.classList.add('pinched');
+            handCursorEl.style.pointerEvents = 'none';
+            pinchTargetEl = document.elementFromPoint(cursorX, cursorY);
+        } else {
+            // Lock cursor strictly so it absolutely doesn't drift downward while clicking
+            cursorX = pinchStartX;
+            cursorY = pinchStartY;
+        }
+    } else if (isScrollGesture) {
+        if (activeNavGesture !== 'scroll') {
+            activeNavGesture = 'scroll';
+            lastScrollY = cursorY; // Set anchor point for joystick
+            pinchStartX = cursorX; // Anchor X for locking during scroll
+            
+            handCursorEl.style.background = 'rgba(6, 182, 212, 0.8)';
+            handCursorEl.style.boxShadow = '0 0 20px rgba(6, 182, 212, 0.8)';
+            handCursorEl.style.width = '24px';
+            handCursorEl.style.height = '24px';
+            
+            let target = document.elementFromPoint(cursorX, cursorY);
+            while (target && target !== document.body && target !== document.documentElement) {
+                if (target.scrollHeight > Math.ceil(target.clientHeight)) {
+                    const overflowY = window.getComputedStyle(target).overflowY;
+                    if (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay') break;
+                }
+                target = target.parentElement;
+            }
+            currentScrollTarget = (target && target !== document.body && target !== document.documentElement) ? target : window;
+        } else {
+            // Joystick Scrolling: anchor firmly in place, speed determined by distance from anchor
+            const dy = cursorY - lastScrollY;
+            const deadzone = 25; // 25px deadzone completely ignores AI jitter
+            
+            if (Math.abs(dy) > deadzone) { 
+                // Calculate smooth continuous scroll speed
+                const speed = (Math.abs(dy) - deadzone) * Math.sign(dy) * 0.4;
+                if (currentScrollTarget) {
+                    currentScrollTarget.scrollBy(0, speed);
+                }
+            }
+            // Lock horizontal movement during scroll so it scrolls perfectly straight
+            cursorX = pinchStartX;
+        }
+    } else {
+        if (activeNavGesture === 'pinch') {
+            // Fire the click immediately upon releasing the pinch
+            if (pinchTargetEl && typeof pinchTargetEl.click === 'function') {
+                pinchTargetEl.click();
+                if (pinchTargetEl.focus) pinchTargetEl.focus();
+            }
+        }
+        
+        // Return to normal tracking
+        activeNavGesture = 'none';
+        handCursorEl.classList.remove('pinched');
+        handCursorEl.style.background = '';
+        handCursorEl.style.boxShadow = '';
+        handCursorEl.style.width = '';
+        handCursorEl.style.height = '';
+        pinchTargetEl = null;
+        currentScrollTarget = null;
+    }
+    
+    handCursorEl.style.left = `${cursorX}px`;
+    handCursorEl.style.top = `${cursorY}px`;
+}
+
+function hideHandCursor() {
+    handCursorEl.classList.remove('active');
+    handCursorEl.classList.remove('pinched');
+    handCursorEl.style.background = '';
+    handCursorEl.style.boxShadow = '';
+    handCursorEl.style.width = '';
+    handCursorEl.style.height = '';
+    activeNavGesture = 'none';
+    pinchTargetEl = null;
+    currentScrollTarget = null;
+}
+
 /* ─── ASL Frame ─── */
-async function runASLFrame() {
+async function runASLFrame(precomputedHands = null) {
     noFaceNotice.classList.remove('visible');
     morseOverlay.classList.remove('visible');
 
-    let hands = [];
-    try { hands = await handDetector.estimateHands(webcamEl, { flipHorizontal: false }); }
-    catch (e) { }
+    let hands = precomputedHands;
+    if (!hands) {
+        try { hands = await handDetector.estimateHands(webcamEl, { flipHorizontal: false }); }
+        catch (e) { hands = []; }
+    }
 
     if (hands.length > 0) {
         const kps = hands[0].keypoints;
@@ -488,13 +651,15 @@ async function runASLFrame() {
 }
 
 /* ─── Word Detection Frame ─── */
-async function runWordFrame() {
+async function runWordFrame(precomputedHands = null) {
     noFaceNotice.classList.remove('visible');
     morseOverlay.classList.remove('visible');
 
-    let hands = [];
-    try { hands = await handDetector.estimateHands(webcamEl, { flipHorizontal: false }); }
-    catch (e) { }
+    let hands = precomputedHands;
+    if (!hands) {
+        try { hands = await handDetector.estimateHands(webcamEl, { flipHorizontal: false }); }
+        catch (e) { hands = []; }
+    }
 
     if (hands.length > 0) {
         const kps = hands[0].keypoints;
@@ -1397,10 +1562,14 @@ let _detectedGesture = null;
 /**
  * Processes one animation frame for the Gesture mode.
  */
-async function runGestureFrame() {
+async function runGestureFrame(precomputedHands = null) {
     if (!handDetector) return;
 
-    const hands = await handDetector.estimateHands(webcamEl, { flipHorizontal: false });
+    let hands = precomputedHands;
+    if (!hands) {
+        try { hands = await handDetector.estimateHands(webcamEl, { flipHorizontal: false }); }
+        catch (e) { hands = []; }
+    }
 
     if (!hands.length) {
         // No hand visible
@@ -3436,3 +3605,17 @@ speakBtn.onclick = () => {
 initModels();
 // Try to load the external words.txt dictionary in the background
 loadWordDictionary();
+
+handNavToggleEl.addEventListener('change', async () => {
+    handNavEnabled = handNavToggleEl.checked;
+    if (handNavEnabled && cameraActive) {
+        if (!modelsLoaded || modelsLoading) {
+            statusText.textContent = 'Loading AI models (Hand Nav)…';
+            await ensureModels();
+            statusText.textContent = 'Camera active — Hand Nav ready!';
+        }
+        if (!animFrameId) {
+            requestAnimationFrame(detectLoop);
+        }
+    }
+});
