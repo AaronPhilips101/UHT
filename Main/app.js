@@ -454,7 +454,7 @@ async function runASLFrame() {
     morseOverlay.classList.remove('visible');
 
     let hands = [];
-    try { hands = await handDetector.estimateHands(webcamEl, { flipHorizontal: mirrorCamera }); }
+    try { hands = await handDetector.estimateHands(webcamEl, { flipHorizontal: false }); }
     catch (e) { }
 
     if (hands.length > 0) {
@@ -493,7 +493,7 @@ async function runWordFrame() {
     morseOverlay.classList.remove('visible');
 
     let hands = [];
-    try { hands = await handDetector.estimateHands(webcamEl, { flipHorizontal: mirrorCamera }); }
+    try { hands = await handDetector.estimateHands(webcamEl, { flipHorizontal: false }); }
     catch (e) { }
 
     if (hands.length > 0) {
@@ -529,7 +529,7 @@ async function runMorseFrame() {
     detectionOverlay.classList.remove('visible');
 
     let faces = [];
-    try { faces = await faceDetector.estimateFaces(webcamEl, { flipHorizontal: true }); }
+    try { faces = await faceDetector.estimateFaces(webcamEl, { flipHorizontal: false }); }
     catch (e) { }
 
     if (faces.length > 0) {
@@ -1400,7 +1400,7 @@ let _detectedGesture = null;
 async function runGestureFrame() {
     if (!handDetector) return;
 
-    const hands = await handDetector.estimateHands(webcamEl, { flipHorizontal: mirrorCamera });
+    const hands = await handDetector.estimateHands(webcamEl, { flipHorizontal: false });
 
     if (!hands.length) {
         // No hand visible
