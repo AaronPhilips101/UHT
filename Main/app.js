@@ -3218,9 +3218,19 @@ if (translateSpeakBtn) {
             zh: 'zh-CN', ja: 'ja-JP', ko: 'ko-KR', ru: 'ru-RU'
         };
         const utter = new SpeechSynthesisUtterance(t);
-        utter.lang = langMap[toLang] || 'en-US';
+        const targetLang = langMap[toLang] || 'en-US';
+        utter.lang = targetLang;
         utter.rate = ttsRateEl ? parseFloat(ttsRateEl.value) : 1;
         utter.pitch = ttsPitchEl ? parseFloat(ttsPitchEl.value) : 1;
+        
+        // Find a matching local voice for the translation if offline
+        let voices = speechSynthesis.getVoices();
+        if (!navigator.onLine) {
+            voices = voices.filter(v => v.localService);
+        }
+        const localVoice = voices.find(v => v.lang.startsWith(targetLang.split('-')[0]));
+        if (localVoice) utter.voice = localVoice;
+        
         speechSynthesis.cancel();
         setTimeout(() => { speechSynthesis.speak(utter); showToast('\ud83d\udd0a Speaking translation\u2026'); }, 120);
     });
@@ -3480,8 +3490,14 @@ function populateTTSVoices() {
         return;
     }
 
+    // If offline, only show localService voices
+    let displayVoices = ttsVoices;
+    if (!navigator.onLine) {
+        displayVoices = ttsVoices.filter(v => v.localService);
+    }
+
     // Sort: English first, then others
-    const sorted = [...ttsVoices].sort((a, b) => {
+    const sorted = [...displayVoices].sort((a, b) => {
         const aEn = a.lang.startsWith('en');
         const bEn = b.lang.startsWith('en');
         if (aEn && !bEn) return -1;
@@ -3540,7 +3556,14 @@ function doTTSSpeak(text) {
 
     // Look up voice by name stored in dropdown (skip if voices empty)
     if (ttsVoices.length > 0 && ttsVoiceSelect && ttsVoiceSelect.value) {
-        const v = ttsVoices.find(v => v.name === ttsVoiceSelect.value);
+        let v = ttsVoices.find(v => v.name === ttsVoiceSelect.value);
+        if (!navigator.onLine && v && !v.localService) {
+             // Fallback to local if selected voice isn't local and we're offline
+             const langPrefix = v.lang.split('-')[0];
+             v = ttsVoices.find(voice => voice.lang.startsWith(langPrefix) && voice.localService) 
+                 || ttsVoices.find(voice => voice.lang.startsWith('en') && voice.localService) 
+                 || ttsVoices.find(voice => voice.localService);
+        }
         if (v) utter.voice = v;
     }
 
