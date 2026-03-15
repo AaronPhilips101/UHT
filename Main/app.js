@@ -346,7 +346,7 @@ async function ensureModels() {
             handPoseDetection.SupportedModels.MediaPipeHands,
             {
                 runtime: 'mediapipe',
-                solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915',
+                solutionPath: 'libs/hands/',
                 modelType: 'full', maxHands: 1,
             }
         );
@@ -356,7 +356,7 @@ async function ensureModels() {
             faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh,
             {
                 runtime: 'mediapipe',
-                solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619',
+                solutionPath: 'libs/face_mesh/',
                 refineLandmarks: false,
                 maxFaces: 1,
             }
@@ -1190,6 +1190,9 @@ async function preprocessDataUrl(dataUrl) {
 async function getOcrWorker() {
     if (ocrWorker) return ocrWorker;
     ocrWorker = await Tesseract.createWorker(ocrLangEl.value, 1, {
+        workerPath: 'libs/worker.min.js',
+        corePath: 'libs/tesseract-core.wasm.js',
+        langPath: 'models/',
         logger: m => {
             if (m.status === 'recognizing text') {
                 const pct = Math.round(m.progress * 100);
