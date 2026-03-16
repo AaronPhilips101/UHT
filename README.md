@@ -1,6 +1,6 @@
-# SignSense (Universal Helper Tool - UHT)
+# Universal Human Language Translator (UHLT)
 
-**SignSense** is a comprehensive, multi-modal accessibility web application designed to bridge communication gaps for individuals with various disabilities. It features real-time American Sign Language (ASL) detection, Morse code eye-blink translation, Optical Character Recognition (OCR), Braille translation and physical printing, and offline language translation. 
+**Universal Human Language Translator (UHLT)** is a comprehensive, multi-modal accessibility web application designed to bridge communication gaps for individuals with various disabilities. It features real-time American Sign Language (ASL) detection, Morse code eye-blink translation, Optical Character Recognition (OCR), Braille translation and physical printing, and offline language translation. 
 
 The application is built to run **completely offline** using local AI models, ensuring privacy and reliability without depending on an internet connection.
 
@@ -18,7 +18,7 @@ The application is built to run **completely offline** using local AI models, en
 - **🔊 Speech-to-Text (STT) & Text-to-Speech (TTS):** Integrated voice capabilities for reading detected text aloud or inputting text natively through the microphone.
 
 ### 🔌 Hardware Integration (Raspberry Pi & Arduino)
-- **Local Braille Printing:** Through the `Rasp/` and `Arduino/` directories, SignSense interfaces with physical hardware to print Braille.
+- **Local Braille Printing:** Through the `Rasp/` and `Arduino/` directories, UHLT interfaces with physical hardware to print Braille.
   - A **Flask Server** (`server.py`) runs on a Raspberry Pi, receiving Braille translation requests via HTTP POST (`/print-braille`).
   - It converts letters into a 6-bit binary string (e.g., `a -> 100000`) and sends it over Serial to an **Arduino**.
   - The **Arduino** (`braille.ino`) reads the serial pattern and actuates physical servos or solenoids to render the tactile Braille dots.
@@ -55,7 +55,7 @@ UHT/
 ## 🚀 Setup & Installation
 
 ### 1. Download Offline Assets
-For SignSense to work entirely offline, you must first download the AI models and libraries. Ensure you have Python installed, then run:
+For UHLT to work entirely offline, you must first download the AI models and libraries. Ensure you have Python installed, then run:
 
 ```bash
 cd "scripts"
@@ -96,4 +96,9 @@ Now, clicking "Print to Braille" on the web UI will trigger the physical printer
 - **Hardware Integration:** Python (Flask, PySerial), C++ (Arduino)
 
 ## 🔒 Privacy First
-By keeping all AI processing locally on your device's browser, SignSense guarantees that **no video frames, images, or audio data ever leave your computer**, prioritizing user privacy and security at all times.
+By keeping all AI processing locally on your device's browser, UHLT guarantees that **no video frames, images, or audio data ever leave your computer**, prioritizing user privacy and security at all times.
+
+---
+
+## 📄 License
+This project is licensed under the MIT License. See `LICENSE` for details.
