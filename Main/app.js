@@ -2110,6 +2110,8 @@ Object.assign(BRAILLE_REVERSE, PUNCT_REVERSE);
 
 /** Number indicator used to prefix digit runs */
 const NUM_INDICATOR = '⠼';
+/** Letter sign — inserted automatically before a lowercase letter that follows a number run */
+const LETTER_SIGN = '⠰';
 
 /**
  * Encode plain text → Braille Unicode string.
@@ -2164,6 +2166,7 @@ function brailleToText(braille) {
     for (let i = 0; i < chars.length; i++) {
         const c = chars[i];
         if (c === '⠠') { capitalize = true; inNumber = false; continue; }
+        if (c === LETTER_SIGN) { inNumber = false; capitalize = false; continue; } // letter sign breaks number run without capitalising
         if (c === NUM_INDICATOR) { inNumber = true; capitalize = false; continue; }
         if (c === '⠀') { result += ' '; inNumber = false; capitalize = false; continue; }
 
@@ -2261,6 +2264,81 @@ brailleDecodeBtn.addEventListener('click', () => {
     const decoded = brailleToText(input);
     brailleDecodeResultEl.textContent = decoded;
     showToast('🔤 Decoded from Braille!');
+});
+
+/**
+ * Forward-scan the Braille text before the cursor to determine if we are
+ * currently inside a number run (i.e. after ⠼ with no space/letter-sign/capital since).
+ * This mirrors the exact logic used by brailleToText() and is reliable even
+ * though digit Braille chars share dot-patterns with letters A–J.
+ */
+function isInBrailleNumberRun(textBefore) {
+    let inNumber = false;
+    for (const c of [...textBefore]) {
+        if (c === NUM_INDICATOR) { inNumber = true; }
+        else if (c === '⠀' || c === '⠠' || c === LETTER_SIGN) { inNumber = false; }
+        // digit/letter Braille chars don't change the state themselves
+    }
+    return inNumber;
+}
+
+// Keyboard → Braille intercept for the decode input box.
+// When the user presses a letter / digit / space / punctuation key,
+// inserts the matching Braille Unicode character instead of the raw key.
+//   • Lowercase letter after a number run → ⠰ (letter sign) + letter's Braille char
+//   • Shift + letter  → ⠠ (capital indicator, already resets number mode) + Braille char
+//   • Digit, first of a run → ⠼ (number indicator) + digit's Braille char
+//   • Digit, continuing a run → digit's Braille char only
+brailleDecodeInputEl.addEventListener('keydown', (e) => {
+    // Let through: modifiers, control keys, arrows, backspace, delete, tab, enter, etc.
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const PASSTHROUGH = new Set([
+        'Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+        'Home', 'End', 'Tab', 'Enter', 'Escape', 'PageUp', 'PageDown',
+        'F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12',
+        'Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'NumLock', 'ScrollLock',
+    ]);
+    if (PASSTHROUGH.has(e.key)) return;
+
+    // Only intercept single printable characters
+    if (e.key.length !== 1) return;
+
+    const key = e.key.toUpperCase();
+    const brailleChar = BRAILLE_MAP[key] ?? BRAILLE_MAP[e.key];
+    if (!brailleChar) return; // unknown char — let it through naturally
+
+    e.preventDefault(); // block the original character
+
+    const isLetter = /^[A-Z]$/.test(key);
+    const isDigit  = /^[0-9]$/.test(e.key);
+    const el       = brailleDecodeInputEl;
+    const before   = el.value.slice(0, el.selectionStart);
+    const inRun    = isInBrailleNumberRun(before);
+
+    let toInsert;
+    if (isDigit) {
+        // First digit of a run needs the number indicator ⠼; consecutive digits don't.
+        toInsert = inRun ? brailleChar : (NUM_INDICATOR + brailleChar);
+    } else if (e.shiftKey && isLetter) {
+        // Capital letter: ⠠ already resets number mode in the decoder.
+        toInsert = '⠠' + brailleChar;
+    } else if (isLetter && inRun) {
+        // Lowercase letter immediately after a number run:
+        // insert ⠰ (letter sign) so the decoder exits number mode without capitalising.
+        toInsert = LETTER_SIGN + brailleChar;
+    } else {
+        toInsert = brailleChar;
+    }
+
+    // Insert at the current cursor position (replaces any selection)
+    const start = el.selectionStart;
+    const end   = el.selectionEnd;
+    el.value = el.value.slice(0, start) + toInsert + el.value.slice(end);
+    // Move cursor after the inserted character(s)
+    el.selectionStart = el.selectionEnd = start + toInsert.length;
+
+    // Trigger the live-decode preview
+    el.dispatchEvent(new Event('input'));
 });
 
 // Live decode preview
