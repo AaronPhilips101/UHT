@@ -3125,8 +3125,16 @@ function offlineTranslate(text, fromLang, toLang) {
 
     words.forEach(token => {
         if (/^\s+$/.test(token)) { translatedWords.push(token); return; }
-        const lw = token.toLowerCase().replace(/[.,!?;:'"()\[\]{}—–]/g, '');
-        const punct = token.slice(lw.length + (token.indexOf(lw)));
+        const match = token.match(/^([.,!?;:'"()\[\]{}—–]*)(.*?)([.,!?;:'"()\[\]{}—–]*)$/);
+        const prePunct = match ? match[1] : '';
+        const coreWord = (match ? match[2] : token) || token;
+        const postPunct = match ? match[3] : '';
+        
+        const lw = coreWord.toLowerCase();
+        if (!lw) {
+            translatedWords.push(token);
+            return;
+        }
         total++;
 
         let result = null;
@@ -3148,10 +3156,10 @@ function offlineTranslate(text, fromLang, toLang) {
 
         if (result) {
             // Preserve original capitalisation
-            if (token[0] === token[0].toUpperCase() && token[0] !== token[0].toLowerCase()) {
+            if (coreWord[0] === coreWord[0].toUpperCase() && coreWord[0] !== coreWord[0].toLowerCase()) {
                 result = result.charAt(0).toUpperCase() + result.slice(1);
             }
-            translatedWords.push(result);
+            translatedWords.push(prePunct + result + postPunct);
             translated++;
         } else {
             translatedWords.push(token); // keep original if unknown
@@ -3192,7 +3200,10 @@ function updateTranslateCharCount() {
     if (translateCharCountEl) translateCharCountEl.textContent = `${l} char${l !== 1 ? 's' : ''}`;
 }
 
-function doTranslate() {
+const mtPipelines = {};
+let mtDownloading = false;
+
+async function doTranslate() {
     const text = translateInputEl.value.trim();
     if (!text) { showToast('⚠️ Enter text to translate!'); return; }
 
@@ -3208,26 +3219,90 @@ function doTranslate() {
     translateBtnEl.textContent = '⌛ Translating…';
     translateBtnEl.disabled = true;
 
-    setTimeout(() => {
-        try {
-            const { text: result, coverage } = offlineTranslate(text, from, to);
-            const pct = Math.round(coverage * 100);
-            translateResultEl.textContent = result;
-            if (translateEngineBadgeEl) {
-                translateEngineBadgeEl.textContent = `Offline • ${pct}% matched`;
-            }
-            if (coverage < 0.5) {
-                showToast(`⚠️ ${pct}% matched — try shorter phrases for best results`);
-            } else {
-                showToast(`✅ Translated! (${pct}% words matched)`);
-            }
-        } catch (err) {
-            translateResultEl.textContent = '❌ Translation error: ' + err.message;
-        } finally {
-            translateBtnEl.textContent = '🌐 Translate';
-            translateBtnEl.disabled = false;
+    // Use dictionary fallback by default to ensure at least some translation
+    let fallbackResult = '';
+    let fallbackPct = 0;
+    try {
+        const { text: result, coverage } = offlineTranslate(text, from, to);
+        fallbackResult = result;
+        fallbackPct = Math.round(coverage * 100);
+    } catch { }
+
+    // Prepare translation pipeline logic using the Neural Network model
+    if (window.transformers) {
+        const { pipeline, env } = window.transformers;
+        env.allowLocalModels = false;
+        
+        // Setup language keys for OPUS models
+        // Many OPUS models group latin languages in 'ROMANCE'
+        const langMap = {
+            'es': 'es', 'fr': 'fr', 'de': 'de', 'it': 'it', 
+            'pt': 'ROMANCE', // Uses en-ROMANCE
+            'hi': 'hi', 'ar': 'ar', 'zh': 'zh',
+            'ja': 'jap', // Uses en-jap
+            'ko': 'ko', 'ru': 'ru'
+        };
+
+        let repo = null;
+        if (from === 'en' && langMap[to]) {
+            repo = `Xenova/opus-mt-en-${langMap[to]}`;
+        } else if (to === 'en' && langMap[from]) {
+            repo = `Xenova/opus-mt-${langMap[from]}-en`;
         }
-    }, 50); // small delay to allow UI to refresh
+
+        if (repo) {
+            if (translateEngineBadgeEl) {
+                translateEngineBadgeEl.textContent = `Neural Model (Loading…)`;
+            }
+            try {
+                if (!mtPipelines[repo]) {
+                    mtDownloading = true;
+                    showToast('⏳ Downloading AI translation model (first time only)…');
+                    // We only want the progress bar if it's the first time
+                    translateResultEl.innerHTML = `<em>Please wait... Downloading offline model for ${from.toUpperCase()}↔${to.toUpperCase()}</em><br><small>This may take ~50MB to ~150MB of bandwidth initially.</small>`;
+                    
+                    mtPipelines[repo] = await pipeline('translation', repo, {
+                        progress_callback: (x) => {
+                            if(x.status === 'download' || x.status === 'init' || x.status === 'progress') {
+                                translateResultEl.textContent = `Downloading AI model: ${Math.round(x.progress || 0)}%`;
+                            }
+                        }
+                    });
+                    mtDownloading = false;
+                }
+                
+                translateResultEl.textContent = `Generating translation...`;
+                const result = await mtPipelines[repo](text);
+                const translation = result[0]?.translation_text || result;
+
+                translateResultEl.textContent = translation;
+                if (translateEngineBadgeEl) {
+                    translateEngineBadgeEl.textContent = `Offline • Neural AI`;
+                }
+                showToast(`✅ Translated! (Neural Model)`);
+                translateBtnEl.textContent = '🌐 Translate';
+                translateBtnEl.disabled = false;
+                return; // successfully handled!
+            } catch (err) {
+                console.warn('Transformers.js failed, falling back to dictionary.', err);
+                mtDownloading = false;
+            }
+        }
+    }
+
+    // Default to offline dictionary if Neural model fails or is unsupported for this language pair
+    translateResultEl.textContent = fallbackResult;
+    if (translateEngineBadgeEl) {
+        translateEngineBadgeEl.textContent = `Offline • ${fallbackPct}% matched (Dictionary)`;
+    }
+    if (fallbackPct < 0.5) {
+        showToast(`⚠️ ${fallbackPct}% matched — try shorter phrases for best results`);
+    } else {
+        showToast(`✅ Translated! (${fallbackPct}% words matched)`);
+    }
+
+    translateBtnEl.textContent = '🌐 Translate';
+    translateBtnEl.disabled = false;
 }
 
 // Wire up translate buttons
